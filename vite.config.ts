@@ -3,6 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
 export default defineConfig({
+  base: '/decision-parser/',
   plugins: [vue()],
   resolve: {
     alias: {

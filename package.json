@@ -17,7 +17,7 @@
   "bugs": {
     "url": "https://github.com/anthony-walsh/decision-parser/issues"
   },
-  "homepage": "https://github.com/anthony-walsh/decision-parser#readme",
+  "homepage": "https://anthony-walsh.github.io/decision-parser",
   "description": "",
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.10",
