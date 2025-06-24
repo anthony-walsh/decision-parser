@@ -1,0 +1,39 @@
+{
+  "name": "decision-parser",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anthony-walsh/decision-parser.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/anthony-walsh/decision-parser/issues"
+  },
+  "homepage": "https://github.com/anthony-walsh/decision-parser#readme",
+  "description": "",
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.1.10",
+    "@types/pdf-parse": "^1.1.5",
+    "@vitejs/plugin-vue": "^6.0.0",
+    "autoprefixer": "^10.4.21",
+    "dexie": "^4.0.11",
+    "fuse.js": "^7.1.0",
+    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^4.10.38",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.10",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0",
+    "vue": "^3.5.17",
+    "vue-router": "^4.5.1",
+    "vue-tsc": "^2.2.10"
+  }
+}
