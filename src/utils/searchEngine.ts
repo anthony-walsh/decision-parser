@@ -46,10 +46,17 @@ export class SearchEngine {
 
       const options = {
         keys: [
-          { name: 'content', weight: 0.7 },
-          { name: 'metadata.title', weight: 0.2 },
-          { name: 'metadata.author', weight: 0.05 },
-          { name: 'metadata.subject', weight: 0.05 }
+          { name: 'content', weight: 0.5 },
+          { name: 'metadata.title', weight: 0.15 },
+          { name: 'metadata.author', weight: 0.03 },
+          { name: 'metadata.subject', weight: 0.03 },
+          // AIDEV-NOTE: Planning appeal metadata fields for enhanced search
+          { name: 'metadata.appealReferenceNumber', weight: 0.15 },
+          { name: 'metadata.lpa', weight: 0.08 },
+          { name: 'metadata.inspector', weight: 0.05 },
+          { name: 'metadata.decisionOutcome', weight: 0.08 },
+          { name: 'metadata.siteVisitDate', weight: 0.03 },
+          { name: 'metadata.decisionDate', weight: 0.03 }
         ],
         threshold: 0.2, // Balanced threshold - not too strict, not too loose
         includeMatches: true,

@@ -1,4 +1,5 @@
 import type { Document, SearchIndex, WorkerMessage, ProcessingProgress } from '@/types';
+import { extractPlanningAppealMetadata } from '@/utils/metadataExtractor';
 
 // Dynamic import of PDF.js to avoid build issues
 let pdfjsLib: any = null;
@@ -380,6 +381,8 @@ async function processFile(file: {name: string, size: number, data: ArrayBuffer,
     // Clean up and optimize the extracted text
     fullText = cleanExtractedText(fullText);
     
+    // AIDEV-NOTE: Extract planning appeal specific metadata from document text
+    const appealMetadata = extractPlanningAppealMetadata(fullText);
 
     // Get metadata
     let metadata;
@@ -402,7 +405,14 @@ async function processFile(file: {name: string, size: number, data: ArrayBuffer,
         title: info.Title || file.name,
         author: info.Author || 'Unknown',
         subject: info.Subject || '',
-        keywords: info.Keywords || ''
+        keywords: info.Keywords || '',
+        // AIDEV-NOTE: Include extracted planning appeal metadata
+        appealReferenceNumber: appealMetadata.appealReferenceNumber,
+        siteVisitDate: appealMetadata.siteVisitDate,
+        decisionDate: appealMetadata.decisionDate,
+        lpa: appealMetadata.lpa,
+        inspector: appealMetadata.inspector,
+        decisionOutcome: appealMetadata.decisionOutcome
       }
     };
 
@@ -414,7 +424,14 @@ async function processFile(file: {name: string, size: number, data: ArrayBuffer,
         title: info.Title || file.name,
         author: info.Author || 'Unknown',
         subject: info.Subject || '',
-        keywords: info.Keywords || ''
+        keywords: info.Keywords || '',
+        // AIDEV-NOTE: Include extracted planning appeal metadata for search indexing
+        appealReferenceNumber: appealMetadata.appealReferenceNumber,
+        siteVisitDate: appealMetadata.siteVisitDate,
+        decisionDate: appealMetadata.decisionDate,
+        lpa: appealMetadata.lpa,
+        inspector: appealMetadata.inspector,
+        decisionOutcome: appealMetadata.decisionOutcome
       }
     };
 

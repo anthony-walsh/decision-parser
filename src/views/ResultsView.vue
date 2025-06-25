@@ -131,10 +131,77 @@
             <h3 class="text-lg font-semibold text-gray-800 mb-2">
               {{ result.document.filename.replace('.pdf', '') }}
             </h3>
-            <div class="text-sm text-gray-500 space-y-1">
+            <div class="text-sm text-gray-500">
               <div>{{ formatFileSize(result.document.size) }}</div>
-              <div class="inline-flex items-center px-2 py-1 rounded-full text-xs" :class="getScoreColor(Math.round((1 - result.overallScore) * 100))">
-                Score: {{ Math.round((1 - result.overallScore) * 100) }}%
+            </div>
+          </div>
+
+          <!-- AIDEV-NOTE: Planning Appeal Metadata Display - Show all metadata fields -->
+          <div class="bg-blue-50 p-3 rounded-lg mb-4 text-xs">
+            <h4 class="font-semibold text-blue-800 mb-2">Appeal Details</h4>
+            <div class="grid grid-cols-1 gap-1 text-blue-700">
+              <div>
+                <span class="font-medium">Appeal Ref:</span> 
+                <span :class="result.document.metadata?.appealReferenceNumber === 'NOT_FOUND' ? 'text-gray-400' : ''">
+                  {{ result.document.metadata?.appealReferenceNumber || 'NOT_FOUND' }}
+                </span>
+              </div>
+              <div>
+                <span class="font-medium">LPA:</span> 
+                <span :class="result.document.metadata?.lpa === 'NOT_FOUND' ? 'text-gray-400' : ''">
+                  {{ result.document.metadata?.lpa || 'NOT_FOUND' }}
+                </span>
+              </div>
+              <div>
+                <span class="font-medium">Inspector:</span> 
+                <span :class="result.document.metadata?.inspector === 'NOT_FOUND' ? 'text-gray-400' : ''">
+                  {{ result.document.metadata?.inspector || 'NOT_FOUND' }}
+                </span>
+              </div>
+              <div>
+                <span class="font-medium">Decision:</span> 
+                <span :class="result.document.metadata?.decisionOutcome === 'NOT_FOUND' ? 'text-gray-400' : getDecisionColor(result.document.metadata?.decisionOutcome)">
+                  {{ result.document.metadata?.decisionOutcome || 'NOT_FOUND' }}
+                </span>
+              </div>
+              <div>
+                <span class="font-medium">Decision Date:</span> 
+                <span :class="result.document.metadata?.decisionDate === 'NOT_FOUND' ? 'text-gray-400' : ''">
+                  {{ result.document.metadata?.decisionDate || 'NOT_FOUND' }}
+                </span>
+              </div>
+              <div>
+                <span class="font-medium">Site Visit:</span> 
+                <span :class="result.document.metadata?.siteVisitDate === 'NOT_FOUND' ? 'text-gray-400' : ''">
+                  {{ result.document.metadata?.siteVisitDate || 'NOT_FOUND' }}
+                </span>
+              </div>
+              <div>
+                <span class="font-medium">Title:</span> 
+                <span :class="!result.document.metadata?.title ? 'text-gray-400' : ''">
+                  {{ result.document.metadata?.title || 'NOT_FOUND' }}
+                </span>
+              </div>
+              <div>
+                <span class="font-medium">Author:</span> 
+                <span :class="!result.document.metadata?.author || result.document.metadata?.author === 'Unknown' ? 'text-gray-400' : ''">
+                  {{ result.document.metadata?.author || 'NOT_FOUND' }}
+                </span>
+              </div>
+              <div>
+                <span class="font-medium">Subject:</span> 
+                <span :class="!result.document.metadata?.subject ? 'text-gray-400' : ''">
+                  {{ result.document.metadata?.subject || 'NOT_FOUND' }}
+                </span>
+              </div>
+              <div>
+                <span class="font-medium">Keywords:</span> 
+                <span :class="!result.document.metadata?.keywords ? 'text-gray-400' : ''">
+                  {{ result.document.metadata?.keywords || 'NOT_FOUND' }}
+                </span>
+              </div>
+              <div>
+                <span class="font-medium">Pages:</span> {{ result.document.metadata?.pageCount || 'N/A' }}
               </div>
             </div>
           </div>
@@ -422,10 +489,11 @@ function clearError() {
   searchError.value = null;
 }
 
-function getScoreColor(score: number): string {
-  if (score >= 80) return 'bg-green-100 text-green-700';
-  if (score >= 60) return 'bg-yellow-100 text-yellow-700';
-  return 'bg-red-100 text-red-700';
+// AIDEV-NOTE: Helper function for planning appeal decision outcome styling
+function getDecisionColor(decision: string | undefined): string {
+  if (decision === 'Allowed') return 'text-green-600 font-semibold';
+  if (decision === 'Dismissed') return 'text-red-600 font-semibold';
+  return 'text-gray-600';
 }
 
 // AIDEV-NOTE: Context extraction is handled by the search engine's extractContext method

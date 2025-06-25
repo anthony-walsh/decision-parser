@@ -10,12 +10,21 @@ export class PDFSearchDatabase extends Dexie {
   constructor() {
     super('PDFSearchDatabase');
     
+    // AIDEV-NOTE: Updated schema to include planning appeal metadata fields for indexing
     this.version(1).stores({
       documents: 'id, filename, uploadDate, processingStatus',
       searchIndex: 'docId, content',
       searchHistory: 'id, timestamp, query',
       savedSearches: 'id, name, createdDate'
     });
+    
+    // AIDEV-NOTE: Future version with metadata indexing (uncomment when needed)
+    // this.version(2).stores({
+    //   documents: 'id, filename, uploadDate, processingStatus, metadata.appealReferenceNumber, metadata.lpa, metadata.decisionOutcome',
+    //   searchIndex: 'docId, content, metadata.appealReferenceNumber, metadata.lpa, metadata.inspector',
+    //   searchHistory: 'id, timestamp, query',
+    //   savedSearches: 'id, name, createdDate'
+    // });
   }
 
   async addDocument(document: Document): Promise<void> {

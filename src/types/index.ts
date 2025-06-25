@@ -11,6 +11,13 @@ export interface Document {
     author?: string;
     subject?: string;
     keywords?: string;
+    // AIDEV-NOTE: Planning appeal specific metadata fields with default "NOT_FOUND" values
+    appealReferenceNumber?: string;
+    siteVisitDate?: string;
+    decisionDate?: string;
+    lpa?: string;
+    inspector?: string;
+    decisionOutcome?: 'Dismissed' | 'Allowed' | 'NOT_FOUND';
   };
 }
 
@@ -23,6 +30,13 @@ export interface SearchIndex {
     author?: string;
     subject?: string;
     keywords?: string;
+    // AIDEV-NOTE: Planning appeal specific metadata fields for search indexing
+    appealReferenceNumber?: string;
+    siteVisitDate?: string;
+    decisionDate?: string;
+    lpa?: string;
+    inspector?: string;
+    decisionOutcome?: 'Dismissed' | 'Allowed' | 'NOT_FOUND';
   };
 }
 
