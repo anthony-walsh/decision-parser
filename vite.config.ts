@@ -14,7 +14,7 @@ export default defineConfig({
     format: 'es'
   },
   optimizeDeps: {
-    include: ['vue', 'vue-router', 'dexie', 'fuse.js'],
+    include: ['vue', 'vue-router', 'dexie', 'fuzzysort'],
     exclude: ['pdfjs-dist']
   },
   server: {
