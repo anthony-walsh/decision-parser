@@ -77,3 +77,28 @@ export interface WorkerMessage {
   type: 'process-batch' | 'pause' | 'resume' | 'progress' | 'error' | 'complete';
   payload?: any;
 }
+
+export interface SearchSummaryData {
+  totalResults: number;
+  uniqueDocuments: number;
+  totalIndexedDocuments: number;
+  searchTime: number;
+  decisionBreakdown: {
+    allowed: number;
+    dismissed: number;
+    unknown: number;
+    total: number;
+  };
+  matchQuality: {
+    averageScore: number;
+    highQualityCount: number;
+  };
+  planningInsights: {
+    uniqueLPAs: number;
+    uniqueInspectors: number;
+    dateRange: {
+      start: string | null;
+      end: string | null;
+    };
+  };
+}

@@ -47,8 +47,11 @@
 
     <!-- Results Container -->
     <div class="max-w-6xl mx-auto px-4 py-6">
-      <!-- Search Stats -->
-      <div class="mb-6">
+      <!-- Enhanced Search Summary -->
+      <SearchSummary v-if="results.length > 0 && searchQuery" :summary="searchSummary" />
+      
+      <!-- Basic Search Stats (kept for fallback) -->
+      <div class="mb-6" v-if="results.length > 0">
         <p class="text-sm text-gray-600">
           {{ results.length }} results for "{{ searchQuery }}" ({{ searchTime }}ms)
         </p>
@@ -141,63 +144,51 @@
             <h4 class="font-semibold text-blue-800 mb-2">Appeal Details</h4>
             <div class="grid grid-cols-1 gap-1 text-blue-700">
               <div>
-                <span class="font-medium">Appeal Ref:</span> 
+                <span class="font-medium">Appeal Ref: </span> 
                 <span :class="result.document.metadata?.appealReferenceNumber === 'NOT_FOUND' ? 'text-gray-400' : ''">
                   {{ result.document.metadata?.appealReferenceNumber || 'NOT_FOUND' }}
                 </span>
               </div>
               <div>
-                <span class="font-medium">LPA:</span> 
+                <span class="font-medium">LPA: </span> 
                 <span :class="result.document.metadata?.lpa === 'NOT_FOUND' ? 'text-gray-400' : ''">
                   {{ result.document.metadata?.lpa || 'NOT_FOUND' }}
                 </span>
               </div>
               <div>
-                <span class="font-medium">Inspector:</span> 
+                <span class="font-medium">Inspector: </span> 
                 <span :class="result.document.metadata?.inspector === 'NOT_FOUND' ? 'text-gray-400' : ''">
                   {{ result.document.metadata?.inspector || 'NOT_FOUND' }}
                 </span>
               </div>
               <div>
-                <span class="font-medium">Decision:</span> 
+                <span class="font-medium">Decision: </span> 
                 <span :class="result.document.metadata?.decisionOutcome === 'NOT_FOUND' ? 'text-gray-400' : getDecisionColor(result.document.metadata?.decisionOutcome)">
                   {{ result.document.metadata?.decisionOutcome || 'NOT_FOUND' }}
                 </span>
               </div>
               <div>
-                <span class="font-medium">Decision Date:</span> 
+                <span class="font-medium">Decision Date: </span> 
                 <span :class="result.document.metadata?.decisionDate === 'NOT_FOUND' ? 'text-gray-400' : ''">
                   {{ result.document.metadata?.decisionDate || 'NOT_FOUND' }}
                 </span>
               </div>
               <div>
-                <span class="font-medium">Site Visit:</span> 
+                <span class="font-medium">Site Visit: </span> 
                 <span :class="result.document.metadata?.siteVisitDate === 'NOT_FOUND' ? 'text-gray-400' : ''">
                   {{ result.document.metadata?.siteVisitDate || 'NOT_FOUND' }}
                 </span>
               </div>
               <div>
-                <span class="font-medium">Title:</span> 
+                <span class="font-medium">Title: </span> 
                 <span :class="!result.document.metadata?.title ? 'text-gray-400' : ''">
                   {{ result.document.metadata?.title || 'NOT_FOUND' }}
                 </span>
               </div>
               <div>
-                <span class="font-medium">Author:</span> 
+                <span class="font-medium">Author: </span> 
                 <span :class="!result.document.metadata?.author || result.document.metadata?.author === 'Unknown' ? 'text-gray-400' : ''">
                   {{ result.document.metadata?.author || 'NOT_FOUND' }}
-                </span>
-              </div>
-              <div>
-                <span class="font-medium">Subject:</span> 
-                <span :class="!result.document.metadata?.subject ? 'text-gray-400' : ''">
-                  {{ result.document.metadata?.subject || 'NOT_FOUND' }}
-                </span>
-              </div>
-              <div>
-                <span class="font-medium">Keywords:</span> 
-                <span :class="!result.document.metadata?.keywords ? 'text-gray-400' : ''">
-                  {{ result.document.metadata?.keywords || 'NOT_FOUND' }}
                 </span>
               </div>
               <div>
@@ -307,7 +298,8 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { db } from '@/stores/database';
-import type { SearchResult } from '@/types';
+import type { SearchResult, SearchSummaryData } from '@/types';
+import SearchSummary from '@/components/SearchSummary.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -333,6 +325,83 @@ const paginatedResults = computed(() => {
   const start = (currentPage.value - 1) * resultsPerPage;
   const end = start + resultsPerPage;
   return results.value.slice(start, end);
+});
+
+// AIDEV-NOTE: Computed property for search summary statistics
+const searchSummary = computed((): SearchSummaryData => {
+  const uniqueDocuments = new Set(results.value.map(r => r.document.id)).size;
+  const totalIndexedDocuments = window.searchEngine?.getIndexedDocumentCount() || 0;
+  
+  // Decision breakdown
+  const decisionCounts = { allowed: 0, dismissed: 0, unknown: 0 };
+  const lpas = new Set<string>();
+  const inspectors = new Set<string>();
+  const decisionDates: Date[] = [];
+  
+  let totalScore = 0;
+  let highQualityCount = 0;
+  
+  results.value.forEach(result => {
+    const decision = result.document.metadata?.decisionOutcome;
+    if (decision === 'Allowed') {
+      decisionCounts.allowed++;
+    } else if (decision === 'Dismissed') {
+      decisionCounts.dismissed++;
+    } else {
+      decisionCounts.unknown++;
+    }
+    
+    // LPA and Inspector tracking
+    if (result.document.metadata?.lpa && result.document.metadata.lpa !== 'NOT_FOUND') {
+      lpas.add(result.document.metadata.lpa);
+    }
+    if (result.document.metadata?.inspector && result.document.metadata.inspector !== 'NOT_FOUND') {
+      inspectors.add(result.document.metadata.inspector);
+    }
+    
+    // Date tracking
+    if (result.document.metadata?.decisionDate && result.document.metadata.decisionDate !== 'NOT_FOUND') {
+      const date = new Date(result.document.metadata.decisionDate);
+      if (!isNaN(date.getTime())) {
+        decisionDates.push(date);
+      }
+    }
+    
+    // Match quality
+    totalScore += result.overallScore;
+    if (result.overallScore < 0.3) { // Low score = high quality in fuzzy search
+      highQualityCount++;
+    }
+  });
+  
+  // Date range calculation
+  const sortedDates = decisionDates.sort((a, b) => a.getTime() - b.getTime());
+  const dateRange = {
+    start: sortedDates.length > 0 ? sortedDates[0].toLocaleDateString('en-GB') : null,
+    end: sortedDates.length > 0 ? sortedDates[sortedDates.length - 1].toLocaleDateString('en-GB') : null
+  };
+  
+  return {
+    totalResults: results.value.length,
+    uniqueDocuments,
+    totalIndexedDocuments,
+    searchTime: searchTime.value,
+    decisionBreakdown: {
+      allowed: decisionCounts.allowed,
+      dismissed: decisionCounts.dismissed,
+      unknown: decisionCounts.unknown,
+      total: decisionCounts.allowed + decisionCounts.dismissed + decisionCounts.unknown
+    },
+    matchQuality: {
+      averageScore: results.value.length > 0 ? totalScore / results.value.length : 0,
+      highQualityCount
+    },
+    planningInsights: {
+      uniqueLPAs: lpas.size,
+      uniqueInspectors: inspectors.size,
+      dateRange
+    }
+  };
 });
 
 onMounted(async () => {
