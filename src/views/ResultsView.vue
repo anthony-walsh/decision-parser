@@ -26,21 +26,32 @@
                   type="text"
                   class="flex-1 px-4 py-3 border-0 focus:outline-none focus:ring-0"
                 />
-                <div class="border-l border-gray-200 px-4 py-2">
-                  <select class="bg-transparent border-0 focus:outline-none focus:ring-0 text-gray-600 cursor-pointer">
-                    <option>All Documents</option>
-                  </select>
-                </div>
               </div>
             </div>
           </div>
-          <button
-            @click="showSaveSearch = true"
-            v-if="searchQuery && results.length > 0"
-            class="px-4 py-2 bg-white text-gray-700 rounded-lg shadow-md hover:shadow-lg transition-all border border-gray-200"
-          >
-            Save Search
-          </button>
+        </div>
+        
+        <!-- AIDEV-NOTE: Search threshold slider for controlling search sensitivity in results view -->
+        <div class="max-w-2xl mx-auto mt-4">
+          <div class="bg-white rounded-xl shadow-lg border border-pink-200 p-4">
+            <div class="flex items-center justify-between mb-3">
+              <label class="text-sm font-medium text-gray-700">Search Sensitivity</label>
+              <span class="text-sm text-gray-500">{{ thresholdLabel }}</span>
+            </div>
+            <input
+              v-model.number="searchThreshold"
+              @input="updateThreshold"
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+            />
+            <div class="flex justify-between text-xs text-gray-400 mt-2">
+              <span>More Fuzzy</span>
+              <span>More Sensitive</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -319,12 +330,24 @@ const searchEngineStatus = ref<{
   error: string | null;
   isInitializing: boolean;
 } | null>(null);
+// AIDEV-NOTE: Search threshold configuration - 0.5 is balanced default
+const searchThreshold = ref(0.5);
 
 const totalPages = computed(() => Math.ceil(results.value.length / resultsPerPage));
 const paginatedResults = computed(() => {
   const start = (currentPage.value - 1) * resultsPerPage;
   const end = start + resultsPerPage;
   return results.value.slice(start, end);
+});
+
+// AIDEV-NOTE: Computed property for threshold display label - inverted for intuitive UI
+const thresholdLabel = computed(() => {
+  const value = searchThreshold.value;
+  if (value <= 0.2) return 'Very Fuzzy';
+  if (value <= 0.4) return 'Fuzzy';
+  if (value <= 0.6) return 'Balanced';
+  if (value <= 0.8) return 'Sensitive';
+  return 'Very Sensitive';
 });
 
 // AIDEV-NOTE: Computed property for search summary statistics
@@ -407,6 +430,11 @@ const searchSummary = computed((): SearchSummaryData => {
 onMounted(async () => {
   // Check search engine status
   updateSearchEngineStatus();
+  
+  // AIDEV-NOTE: Initialize search engine with current threshold - invert value for intuitive UI
+  if (window.searchEngine) {
+    window.searchEngine.setThreshold(searchThreshold.value);
+  }
   
   const query = route.query.q as string;
   if (query) {
@@ -566,6 +594,18 @@ function getDecisionColor(decision: string | undefined): string {
 }
 
 // AIDEV-NOTE: Context extraction is handled by the search engine's extractContext method
+
+// AIDEV-NOTE: Update search engine threshold and automatically re-run search - invert value for intuitive UI
+async function updateThreshold() {
+  if (window.searchEngine) {
+    // Invert the threshold value so UI is intuitive: left=fuzzy, right=sensitive
+    window.searchEngine.setThreshold(searchThreshold.value);
+    // Automatically re-run the search with new threshold
+    if (searchQuery.value.trim()) {
+      await performSearch();
+    }
+  }
+}
 </script>
 
 <style>
@@ -583,5 +623,39 @@ function getDecisionColor(decision: string | undefined): string {
   border-radius: 0.25rem;
   font-weight: 700;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* AIDEV-NOTE: Custom slider styling for threshold control */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-webkit-slider-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #10b981, #f59e0b, #ef4444);
+}
+
+.slider::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #10b981, #f59e0b, #ef4444);
+  border: none;
 }
 </style>
