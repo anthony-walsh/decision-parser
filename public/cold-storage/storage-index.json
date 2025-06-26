@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "totalDocuments": 0,
+  "batches": [],
+  "lastUpdated": "2024-01-01T00:00:00.000Z",
+  "metadata": {
+    "description": "Storage index for encrypted document batches",
+    "batchSizeLimit": "20MB",
+    "documentsPerBatch": 1000,
+    "encryptionAlgorithm": "AES-GCM-256"
+  }
+}
