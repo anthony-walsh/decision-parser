@@ -5,8 +5,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
-    "deploy": "npm run build && gh-pages -d dist",
-    "preview": "vite preview"
+    "build:validate": "npm run build && node scripts/build-validation.js",
+    "deploy": "npm run build:validate && gh-pages -d dist",
+    "preview": "vite preview",
+    "validate": "node scripts/build-validation.js",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest --watch"
   },
   "repository": {
     "type": "git",
@@ -26,6 +33,8 @@
     "@vitejs/plugin-vue": "^6.0.0",
     "absurd-sql": "^0.0.54",
     "autoprefixer": "^10.4.21",
+    "axios": "^1.10.0",
+    "cheerio": "^1.1.0",
     "dexie": "^4.0.11",
     "fuzzysort": "^3.1.0",
     "gh-pages": "^6.3.0",
@@ -39,5 +48,13 @@
     "vue": "^3.5.17",
     "vue-router": "^4.5.1",
     "vue-tsc": "^2.2.10"
+  },
+  "devDependencies": {
+    "@vitest/ui": "^3.2.4",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^18.0.1",
+    "jsdom": "^26.1.0",
+    "terser": "^5.43.1",
+    "vitest": "^3.2.4"
   }
 }

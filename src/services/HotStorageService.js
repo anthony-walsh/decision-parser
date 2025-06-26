@@ -65,7 +65,7 @@ export class HotStorageService {
   }
 
   /**
-   * Store document and search index
+   * Store document and search index with limit enforcement
    */
   async storeDocument(document, searchIndex) {
     if (!this.isAuthenticated) {
@@ -73,6 +73,31 @@ export class HotStorageService {
     }
 
     try {
+      // Check hot storage limit before adding
+      const stats = await this.getStats();
+      const maxDocuments = 5000; // Hot storage limit
+      
+      if (stats.documentCount >= maxDocuments) {
+        throw new Error(`Hot storage limit reached (${maxDocuments} documents). Migration required.`);
+      }
+      
+      // Warn when approaching limit
+      if (stats.documentCount >= maxDocuments * 0.9) {
+        console.warn(`Hot storage approaching limit: ${stats.documentCount}/${maxDocuments} (${Math.round((stats.documentCount / maxDocuments) * 100)}%)`);
+        
+        // Emit warning event for UI notification
+        if (typeof window !== 'undefined') {
+          const event = new CustomEvent('hotStorageWarning', {
+            detail: {
+              currentCount: stats.documentCount,
+              maxCount: maxDocuments,
+              percentage: Math.round((stats.documentCount / maxDocuments) * 100)
+            }
+          });
+          window.dispatchEvent(event);
+        }
+      }
+
       const result = await this.sendMessage('store-document', {
         document,
         searchIndex
@@ -82,6 +107,58 @@ export class HotStorageService {
     } catch (error) {
       console.error('Failed to store document:', error);
       throw new Error(`Document storage failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Add document (alias for storeDocument for compatibility)
+   */
+  async addDocument(document, searchIndex) {
+    return await this.storeDocument(document, searchIndex);
+  }
+
+  /**
+   * Remove document from hot storage
+   */
+  async removeDocument(documentId) {
+    if (!this.isAuthenticated) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const result = await this.sendMessage('remove-document', { documentId });
+      return result;
+    } catch (error) {
+      console.error('Failed to remove document:', error);
+      throw new Error(`Document removal failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Check if hot storage limit enforcement is needed
+   */
+  async checkStorageLimit() {
+    try {
+      const stats = await this.getStats();
+      const maxDocuments = 5000;
+      
+      return {
+        currentCount: stats.documentCount,
+        maxCount: maxDocuments,
+        percentage: Math.round((stats.documentCount / maxDocuments) * 100),
+        limitReached: stats.documentCount >= maxDocuments,
+        warningThreshold: stats.documentCount >= maxDocuments * 0.9
+      };
+    } catch (error) {
+      console.error('Failed to check storage limit:', error);
+      return {
+        currentCount: 0,
+        maxCount: 5000,
+        percentage: 0,
+        limitReached: false,
+        warningThreshold: false,
+        error: error.message
+      };
     }
   }
 
@@ -141,6 +218,102 @@ export class HotStorageService {
     } catch (error) {
       console.warn('Failed to update document access:', error);
       // Don't throw - this is non-critical
+    }
+  }
+
+  /**
+   * Query documents directly from hot storage
+   */
+  async query(sql, params = []) {
+    if (!this.isAuthenticated) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const result = await this.sendMessage('query', { sql, params });
+      return result.rows || [];
+    } catch (error) {
+      console.error('Failed to query hot storage:', error);
+      throw new Error(`Query failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get documents by age (for migration)
+   */
+  async getDocumentsByAge(daysOld, limit = 100) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+    
+    return await this.query(`
+      SELECT * FROM documents 
+      WHERE upload_date < ? 
+      ORDER BY upload_date ASC 
+      LIMIT ?
+    `, [cutoffDate.toISOString(), limit]);
+  }
+
+  /**
+   * Get documents by access pattern (for migration)
+   */
+  async getDocumentsByAccess(daysInactive, limit = 100) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
+    
+    return await this.query(`
+      SELECT * FROM documents 
+      WHERE last_accessed < ? OR last_accessed IS NULL
+      ORDER BY last_accessed ASC, upload_date ASC
+      LIMIT ?
+    `, [cutoffDate.toISOString(), limit]);
+  }
+
+  /**
+   * Batch update access tracking
+   */
+  async batchUpdateAccess(documentIds) {
+    if (!this.isAuthenticated || !documentIds.length) {
+      return;
+    }
+
+    try {
+      await this.sendMessage('batch-update-access', { documentIds });
+    } catch (error) {
+      console.warn('Failed to batch update access:', error);
+    }
+  }
+
+  /**
+   * Clear all documents (for testing/maintenance)
+   */
+  async clearAll() {
+    if (!this.isAuthenticated) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const result = await this.sendMessage('clear-all');
+      return result;
+    } catch (error) {
+      console.error('Failed to clear all documents:', error);
+      throw new Error(`Clear all failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Refresh hot storage (reload from worker)
+   */
+  async refresh() {
+    if (!this.isAuthenticated) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const result = await this.sendMessage('refresh');
+      return result;
+    } catch (error) {
+      console.error('Failed to refresh hot storage:', error);
+      throw new Error(`Refresh failed: ${error.message}`);
     }
   }
 

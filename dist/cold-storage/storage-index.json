@@ -1,12 +1,16 @@
 {
   "version": "1.0",
   "totalDocuments": 0,
+  "totalBatches": 0,
+  "lastUpdated": "2025-06-26T00:00:00.000Z",
   "batches": [],
-  "lastUpdated": "2024-01-01T00:00:00.000Z",
   "metadata": {
-    "description": "Storage index for encrypted document batches",
-    "batchSizeLimit": "20MB",
-    "documentsPerBatch": 1000,
-    "encryptionAlgorithm": "AES-GCM-256"
+    "encryptionAlgorithm": "AES-GCM",
+    "keyDerivation": "PBKDF2",
+    "pbkdf2Iterations": 600000,
+    "batchSizeLimit": 15728640,
+    "documentThreshold": 1000,
+    "created": "2025-06-26T00:00:00.000Z",
+    "description": "Cold storage index for encrypted document batches with AES-GCM-256 encryption"
   }
 }

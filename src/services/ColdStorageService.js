@@ -1,9 +1,19 @@
 /**
- * Cold Storage Service
+ * ColdStorageService - Main thread interface for encrypted cold storage
  * 
- * Main thread interface for cold storage operations using encrypted batch worker.
- * Handles archived documents with progressive search results.
+ * Provides:
+ * - Progressive search across encrypted document batches
+ * - Worker communication for cold storage operations
+ * - 100MB batch cache with LRU eviction management
+ * - Authentication integration with encryption keys
+ * - Memory management integration for decrypted data cleanup
+ * 
+ * AIDEV-NOTE: Main thread service that coordinates with coldStorageWorker.ts
  */
+
+import { memoryManager } from './MemoryManager.js';
+import { performanceMonitor } from './PerformanceMonitor.js';
+import { browserResourceManager } from '../utils/BrowserResourceManager.js';
 
 export class ColdStorageService {
   constructor() {
@@ -14,6 +24,128 @@ export class ColdStorageService {
     this.pendingMessages = new Map();
     this.storageIndex = null;
     this.searchCallbacks = new Map();
+    
+    // AIDEV-NOTE: Memory management integration
+    this.decryptedBatches = new Map(); // Track decrypted batches locally
+    this.memoryCleanupTimeout = null;
+    this.performanceMetrics = {
+      searchOperations: 0,
+      totalSearchTime: 0,
+      decryptionOperations: 0,
+      totalDecryptionTime: 0
+    };
+    
+    // Setup memory management listeners
+    this.setupMemoryManagement();
+  }
+
+  /**
+   * Setup memory management integration
+   * AIDEV-NOTE: Integrates with MemoryManager for automatic cleanup
+   */
+  setupMemoryManagement() {
+    // Listen for memory warnings
+    memoryManager.onMemoryWarning((data) => {
+      console.warn('Memory warning received in ColdStorageService:', data);
+      this.performMemoryCleanup();
+    });
+    
+    // Listen for cleanup events
+    memoryManager.onCleanup((data) => {
+      console.log('Memory cleanup performed, freed:', data.memoryFreed + 'MB');
+    });
+    
+    // Setup periodic cleanup
+    this.scheduleMemoryCleanup();
+  }
+
+  /**
+   * Perform memory cleanup for cold storage operations
+   * AIDEV-NOTE: Cleanup decrypted batches and notify MemoryManager
+   */
+  async performMemoryCleanup() {
+    console.log('Performing cold storage memory cleanup');
+    
+    const startTime = performance.now();
+    let cleanedMemory = 0;
+    
+    // Get least recently used batches
+    const sortedBatches = Array.from(this.decryptedBatches.entries())
+      .sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+    
+    // Clean up oldest 50% of batches
+    const toClean = Math.max(1, Math.floor(sortedBatches.length * 0.5));
+    
+    for (let i = 0; i < toClean && i < sortedBatches.length; i++) {
+      const [batchId, batch] = sortedBatches[i];
+      cleanedMemory += batch.size || 0;
+      
+      // Untrack from memory manager
+      memoryManager.untrackDecryptedBatch(batchId);
+      
+      // Remove from local tracking
+      this.decryptedBatches.delete(batchId);
+      
+      console.log(`Cleaned up decrypted batch: ${batchId} (${batch.size || 0}MB)`);
+    }
+    
+    // Record performance metric
+    const duration = performance.now() - startTime;
+    performanceMonitor.recordStorageOperation('cleanup', duration, cleanedMemory, {
+      batchesCleaned: toClean,
+      memoryFreed: cleanedMemory
+    });
+    
+    console.log(`Cold storage cleanup completed: ${cleanedMemory}MB freed in ${duration.toFixed(2)}ms`);
+  }
+
+  /**
+   * Schedule periodic memory cleanup
+   * AIDEV-NOTE: Automatic cleanup every 5 minutes
+   */
+  scheduleMemoryCleanup() {
+    if (this.memoryCleanupTimeout) {
+      clearTimeout(this.memoryCleanupTimeout);
+    }
+    
+    this.memoryCleanupTimeout = setTimeout(() => {
+      this.performMemoryCleanup();
+      this.scheduleMemoryCleanup(); // Reschedule
+    }, 5 * 60 * 1000); // 5 minutes
+  }
+
+  /**
+   * Track decrypted batch in memory manager
+   * AIDEV-NOTE: Register batch with MemoryManager for tracking
+   */
+  trackDecryptedBatch(batchId, data, sizeMB) {
+    const batchInfo = {
+      data,
+      size: sizeMB,
+      createdAt: new Date(),
+      lastAccessed: new Date()
+    };
+    
+    // Track locally
+    this.decryptedBatches.set(batchId, batchInfo);
+    
+    // Track in memory manager
+    memoryManager.trackDecryptedBatch(batchId, data, sizeMB);
+    
+    console.log(`Tracking decrypted batch: ${batchId} (${sizeMB}MB)`);
+  }
+
+  /**
+   * Access decrypted batch and update access time
+   * AIDEV-NOTE: Update last accessed time for LRU cleanup
+   */
+  accessDecryptedBatch(batchId) {
+    const batch = this.decryptedBatches.get(batchId);
+    if (batch) {
+      batch.lastAccessed = new Date();
+      return memoryManager.accessDecryptedBatch(batchId);
+    }
+    return null;
   }
 
   /**
@@ -89,6 +221,7 @@ export class ColdStorageService {
 
   /**
    * Search cold storage with progressive results
+   * AIDEV-NOTE: Integrated with performance monitoring and resource management
    */
   async searchDocuments(query, options = {}, progressCallback = null) {
     if (!this.isAuthenticated) {
@@ -104,6 +237,18 @@ export class ColdStorageService {
         message: 'No archived documents available'
       };
     }
+
+    // AIDEV-NOTE: Performance monitoring integration
+    const searchStartTime = performance.now();
+    const operationId = `cold-search-${Date.now()}`;
+    
+    // Track heavy operation for resource management
+    const estimatedDuration = this.storageIndex.batches.length * 1000; // Estimate 1s per batch
+    browserResourceManager.trackHeavyOperation(
+      operationId, 
+      `Cold storage search: "${query}"`, 
+      estimatedDuration
+    );
 
     try {
       const searchId = `search_${++this.messageId}`;
@@ -122,6 +267,26 @@ export class ColdStorageService {
       // Clean up callback
       this.searchCallbacks.delete(searchId);
 
+      // AIDEV-NOTE: Record performance metrics
+      const searchDuration = performance.now() - searchStartTime;
+      this.performanceMetrics.searchOperations++;
+      this.performanceMetrics.totalSearchTime += searchDuration;
+      
+      // Record in performance monitor
+      performanceMonitor.recordSearchOperation(
+        'cold', 
+        query, 
+        searchDuration, 
+        result.results?.length || 0,
+        {
+          batchesSearched: result.batchesSearched || 0,
+          limited: result.limited || false
+        }
+      );
+      
+      // Complete heavy operation tracking
+      browserResourceManager.completeHeavyOperation(operationId);
+
       return {
         results: result.results || [],
         total: result.total || 0,
@@ -132,6 +297,22 @@ export class ColdStorageService {
 
     } catch (error) {
       console.error('Cold storage search failed:', error);
+      
+      // AIDEV-NOTE: Record failed operation metrics
+      const searchDuration = performance.now() - searchStartTime;
+      performanceMonitor.recordSearchOperation(
+        'cold', 
+        query, 
+        searchDuration, 
+        0,
+        {
+          error: error.message,
+          failed: true
+        }
+      );
+      
+      // Complete heavy operation tracking
+      browserResourceManager.completeHeavyOperation(operationId);
       
       // Return partial results if available
       return {
@@ -343,5 +524,5 @@ export class ColdStorageService {
   }
 }
 
-// Export singleton instance
+// AIDEV-NOTE: Export singleton instance for consistent usage across application
 export const coldStorageService = new ColdStorageService();

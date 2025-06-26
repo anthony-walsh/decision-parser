@@ -361,10 +361,51 @@
         </div>
       </div>
 
-      <!-- Loading State -->
-      <div v-else-if="isLoading" class="text-center py-8">
-        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        <p class="mt-2 text-gray-400">Searching...</p>
+      <!-- Progressive Loading State - Enhanced for Hot/Cold Storage -->
+      <div v-else-if="isLoading || store.state.search.results.isLoading" class="text-center py-8">
+        <div class="space-y-4">
+          <!-- Main loading spinner -->
+          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          
+          <!-- Progressive loading indicators -->
+          <div class="max-w-lg mx-auto space-y-2">
+            <!-- Hot storage search status -->
+            <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
+              <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span class="text-sm text-gray-300">Hot Storage (Recent)</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span v-if="store.state.search.results.isHotComplete" class="text-green-400 text-xs">
+                  ✓ {{ store.state.search.results.hot.length }} results
+                </span>
+                <span v-else class="text-blue-400 text-xs">Searching...</span>
+              </div>
+            </div>
+            
+            <!-- Cold storage search status -->
+            <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
+              <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-cyan-500 rounded-full animate-pulse"></div>
+                <span class="text-sm text-gray-300">Cold Storage (Archive)</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span v-if="store.state.search.results.isColdComplete" class="text-green-400 text-xs">
+                  ✓ {{ store.state.search.results.cold.length }} results
+                </span>
+                <span v-else-if="store.state.coldStorage.searchProgress.isSearching" class="text-cyan-400 text-xs">
+                  {{ store.state.coldStorage.searchProgress.completedBatches }}/{{ store.state.coldStorage.searchProgress.totalBatches }} batches
+                </span>
+                <span v-else class="text-gray-500 text-xs">Waiting...</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Search progress message -->
+          <p class="text-gray-400 text-sm">
+            {{ store.state.coldStorage.searchProgress.message || 'Searching across storage tiers...' }}
+          </p>
+        </div>
       </div>
 
       <!-- No Results -->
@@ -379,105 +420,14 @@
 
       <!-- Results List -->
       <div v-else-if="filteredResults.length > 0" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        <div
-          v-for="(result, index) in paginatedResults"
+        <SearchResultCard
+          v-for="result in paginatedResults"
           :key="result.document.id"
-          class="bg-gray-800 border border-gray-700 rounded-xl p-4 hover:shadow-2xl hover:shadow-blue-900/20 transition-all duration-200 shadow-lg hover:border-gray-600 hover:-translate-y-1"
-        >
-          <!-- Document Header -->
-          <div class="text-center mb-3">
-            <div class="w-12 h-12 mx-auto mb-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-              </svg>
-            </div>
-            <h3 class="text-sm font-semibold text-gray-200 mb-1">
-              {{ result.document.filename.replace('.pdf', '') }}
-            </h3>
-            <div class="text-xs text-gray-400">
-              <div>{{ formatFileSize(result.document.size) }}</div>
-            </div>
-          </div>
-
-          <!-- Appeal Metadata Display -->
-          <div class="bg-blue-900/20 p-2 rounded-lg mb-3 text-xs border border-blue-800/30">
-            <h4 class="font-semibold text-blue-300 mb-1">Appeal Details</h4>
-            <div class="grid grid-cols-1 gap-0.5 text-blue-200">
-              <div>
-                <span class="font-medium">Appeal Ref: </span> 
-                <span :class="result.document.metadata?.appealReferenceNumber === 'NOT_FOUND' ? 'text-gray-500' : ''">
-                  {{ result.document.metadata?.appealReferenceNumber || 'NOT_FOUND' }}
-                </span>
-              </div>
-              <div>
-                <span class="font-medium">LPA: </span> 
-                <span :class="result.document.metadata?.lpa === 'NOT_FOUND' ? 'text-gray-500' : ''">
-                  {{ result.document.metadata?.lpa || 'NOT_FOUND' }}
-                </span>
-              </div>
-              <div>
-                <span class="font-medium">Decision: </span> 
-                <span :class="result.document.metadata?.decisionOutcome === 'NOT_FOUND' ? 'text-gray-500' : getDecisionColor(result.document.metadata?.decisionOutcome)">
-                  {{ result.document.metadata?.decisionOutcome || 'NOT_FOUND' }}
-                </span>
-              </div>
-              <div>
-                <span class="font-medium">Decision Date: </span> 
-                <span :class="result.document.metadata?.decisionDate === 'NOT_FOUND' ? 'text-gray-500' : ''">
-                  {{ result.document.metadata?.decisionDate || 'NOT_FOUND' }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Search Matches -->
-          <div class="space-y-2 mb-3">
-            <div
-              v-for="(match, matchIndex) in result.matches.slice(0, 2)"
-              :key="matchIndex"
-              class="bg-gray-700/50 p-2 rounded-lg border border-gray-600"
-            >
-              <p class="text-xs text-gray-300 leading-relaxed" v-html="highlightMatches(match.content, match.matchValue || searchQuery)"></p>
-            </div>
-            <button
-              v-if="result.matches.length > 2"
-              @click="toggleExpandResult(index)"
-              class="text-xs text-blue-400 hover:text-blue-300 font-medium"
-            >
-              {{ expandedResults.has(index) ? 'Show Less' : `Show ${result.matches.length - 2} More` }}
-            </button>
-            <div
-              v-if="expandedResults.has(index)"
-              class="space-y-2"
-            >
-              <div
-                v-for="(match, matchIndex) in result.matches.slice(2)"
-                :key="`expanded-${matchIndex}`"
-                class="bg-gray-700/50 p-2 rounded-lg border border-gray-600"
-              >
-                <p class="text-xs text-gray-300 leading-relaxed" v-html="highlightMatches(match.content, searchQuery)"></p>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Action Buttons -->
-          <div class="flex justify-center gap-2">
-            <button
-              @click="openDocument(result.document)"
-              class="px-3 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg text-xs hover:from-blue-600 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium shadow-md hover:shadow-lg"
-              :aria-label="`View document ${result.document.filename}`"
-            >
-              View Document
-            </button>
-            <button
-              @click="hideDocument(result.document.id)"
-              class="px-3 py-2 bg-gray-700 text-gray-300 rounded-lg text-xs hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all border border-gray-600 shadow-md hover:shadow-lg"
-              :aria-label="`Hide document ${result.document.filename}`"
-            >
-              Hide
-            </button>
-          </div>
-        </div>
+          :result="result"
+          :search-query="searchQuery"
+          @view-document="openDocument"
+          @hide-document="hideDocument"
+        />
       </div>
 
       <!-- Pagination -->
@@ -531,6 +481,9 @@
         </div>
       </div>
     </div>
+
+    <!-- Performance Indicator -->
+    <PerformanceIndicator />
   </div>
 </template>
 
@@ -538,8 +491,14 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { db } from '@/stores/database';
+import { useStorageStore } from '@/stores';
 import type { SearchHistory, SavedSearch, DateFilter, SearchResult, SearchSummaryData } from '@/types';
 import UploadComponent from '@/components/UploadComponent.vue';
+import SearchResultCard from '@/components/SearchResultCard.vue';
+import PerformanceIndicator from '@/components/PerformanceIndicator.vue';
+
+// AIDEV-NOTE: Use new Vue store for hot/cold storage management
+const store = useStorageStore();
 
 const router = useRouter();
 const route = useRoute();
@@ -559,7 +518,7 @@ const recentSearches = ref<SearchHistory[]>([]);
 const savedSearches = ref<SavedSearch[]>([]);
 const currentPage = ref(1);
 const resultsPerPage = 20;
-const expandedResults = ref(new Set<number>());
+// AIDEV-NOTE: expandedResults state moved to SearchResultCard component
 // AIDEV-NOTE: Track hidden documents for current search session only
 const hiddenDocuments = ref(new Set<string>());
 
@@ -669,13 +628,23 @@ const searchSummary = computed((): SearchSummaryData => {
 });
 
 onMounted(async () => {
-  // Check search engine status
-  updateSearchEngineStatus();
+  // AIDEV-NOTE: Initialize storage through Vue store
+  try {
+    await store.hotStorage.initialize();
+    console.log('Hot storage initialized through store');
+  } catch (error) {
+    console.error('Hot storage initialization failed:', error);
+    searchError.value = store.state.hotStorage.error || 'Hot storage initialization failed';
+  }
   
-  // Initialize search engine with current threshold
+  // Initialize legacy search engine as fallback (gradually phase out)
+  updateSearchEngineStatus();
   if (window.searchEngine) {
     window.searchEngine.setThreshold(searchThreshold.value);
   }
+  
+  // Set initial search threshold in store
+  store.search.setThreshold(searchThreshold.value);
   
   // Load initial data
   await loadStats();
@@ -691,12 +660,29 @@ onMounted(async () => {
 });
 
 async function loadStats() {
-  const [docs, indices] = await Promise.all([
-    db.getAllDocuments(),
-    db.getAllSearchIndices()
-  ]);
-  documentCount.value = docs.length;
-  indexedCount.value = indices.length;
+  try {
+    // AIDEV-NOTE: Load stats through store for better state management
+    await store.hotStorage.loadStats();
+    
+    // Also get legacy stats for backward compatibility during migration
+    const [legacyDocs, legacyIndices] = await Promise.all([
+      db.getAllDocuments(),
+      db.getAllSearchIndices()
+    ]);
+    
+    // Use hot storage stats if available, otherwise use legacy stats
+    documentCount.value = store.state.hotStorage.stats.documentCount || legacyDocs.length;
+    indexedCount.value = store.state.hotStorage.stats.indexedCount || legacyIndices.length;
+  } catch (error) {
+    console.error('Failed to load stats:', error);
+    // Fallback to legacy stats only
+    const [docs, indices] = await Promise.all([
+      db.getAllDocuments(),
+      db.getAllSearchIndices()
+    ]);
+    documentCount.value = docs.length;
+    indexedCount.value = indices.length;
+  }
 }
 
 async function loadSearchHistory() {
@@ -714,40 +700,46 @@ async function performSearch() {
   // Clear previous errors
   searchError.value = null;
   
-  // Update search engine status
-  updateSearchEngineStatus();
-  
-  // Check if search engine is ready
-  if (searchEngineStatus.value?.isInitializing) {
-    searchError.value = 'Search engine is still initializing. Please wait a moment and try again.';
-    return;
-  }
-  
-  if (searchEngineStatus.value?.error) {
-    searchError.value = `Search engine initialization failed: ${searchEngineStatus.value.error}`;
-    return;
-  }
-  
-  if (!window.searchEngine) {
-    searchError.value = 'Search engine is not available. Please refresh the page and try again.';
-    return;
-  }
-
   isLoading.value = true;
   currentPage.value = 1;
-  expandedResults.value.clear();
+  // AIDEV-NOTE: expandedResults now handled by individual SearchResultCard components
   // AIDEV-NOTE: Clear hidden documents for new search
   hiddenDocuments.value.clear();
 
   try {
     const startTime = performance.now();
     
-    // Pass date filter to search engine if not 'all'
-    const searchDateFilter = dateFilter.value.type !== 'all' ? dateFilter.value : undefined;
-    results.value = await window.searchEngine.search(searchQuery.value.trim(), 50, searchDateFilter);
-    
-    const endTime = performance.now();
-    searchTime.value = Math.round(endTime - startTime);
+    // AIDEV-NOTE: Use store for unified search across hot/cold storage
+    try {
+      // Update store with current search filters
+      store.search.setDateFilter(dateFilter.value);
+      store.search.setThreshold(searchThreshold.value);
+      
+      // Perform unified search through store
+      await store.search.performUnifiedSearch(searchQuery.value.trim(), {
+        limit: 50
+      });
+      
+      // Get results from store
+      results.value = store.allSearchResults.value;
+      searchTime.value = store.state.search.performance.totalSearchTime;
+      
+      console.log(`Store search returned ${results.value.length} results in ${searchTime.value}ms`);
+    } catch (storeSearchError) {
+      console.warn('Store search failed, falling back to legacy search:', storeSearchError);
+      
+      // Fallback to legacy search engine
+      updateSearchEngineStatus();
+      if (window.searchEngine) {
+        const searchDateFilter = dateFilter.value.type !== 'all' ? dateFilter.value : undefined;
+        const searchResults = await window.searchEngine.search(searchQuery.value.trim(), 50, searchDateFilter);
+        results.value = searchResults;
+        const endTime = performance.now();
+        searchTime.value = Math.round(endTime - startTime);
+      } else {
+        throw new Error('Both store search and legacy search are unavailable');
+      }
+    }
 
     // Update URL without triggering navigation
     const queryParams: any = { q: searchQuery.value.trim() };
@@ -788,12 +780,17 @@ function updateSearchEngineStatus() {
 }
 
 function updateThreshold() {
+  // Update store threshold
+  store.search.setThreshold(searchThreshold.value);
+  
+  // Update legacy search engine as well for fallback
   if (window.searchEngine) {
     window.searchEngine.setThreshold(searchThreshold.value);
-    // Automatically re-run the search with new threshold
-    if (searchQuery.value.trim()) {
-      performSearch();
-    }
+  }
+  
+  // Automatically re-run the search with new threshold
+  if (searchQuery.value.trim()) {
+    performSearch();
   }
 }
 
@@ -829,7 +826,14 @@ async function handleUploadComplete() {
   showUploadModal.value = false;
   await loadStats();
   
-  // Refresh search engine
+  // Refresh hot storage through store
+  try {
+    await store.hotStorage.refresh();
+  } catch (error) {
+    console.error('Failed to refresh hot storage through store:', error);
+  }
+  
+  // Refresh legacy search engine as fallback
   if (window.searchEngine) {
     await window.searchEngine.refresh();
   }
@@ -837,60 +841,40 @@ async function handleUploadComplete() {
 
 async function clearAllPDFs() {
   if (confirm('Are you sure you want to clear all PDFs? This action cannot be undone.')) {
+    // Clear hot storage through store
+    try {
+      await store.hotStorage.clearAll();
+    } catch (error) {
+      console.error('Failed to clear hot storage through store:', error);
+    }
+    
+    // Clear legacy data as fallback
     await db.clearAllData();
     await loadStats();
     await loadSearchHistory();
     await loadSavedSearches();
     
-    // Clear current results
+    // Clear current results and search state
     results.value = [];
     searchQuery.value = '';
+    store.search.clearResults();
     
-    // Refresh search engine
+    // Refresh both storage systems
+    try {
+      await store.hotStorage.refresh();
+    } catch (error) {
+      console.error('Failed to refresh hot storage through store:', error);
+    }
+    
     if (window.searchEngine) {
       await window.searchEngine.refresh();
     }
   }
 }
 
-// Helper functions for formatting
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
+// AIDEV-NOTE: formatFileSize and getDecisionColor functions moved to SearchResultCard component
 
-function getDecisionColor(decision: string | undefined): string {
-  if (decision === 'Allowed') return 'text-green-400 font-semibold';
-  if (decision === 'Dismissed') return 'text-red-400 font-semibold';
-  return 'text-gray-400';
-}
-
-// Results display functions
-function toggleExpandResult(index: number) {
-  if (expandedResults.value.has(index)) {
-    expandedResults.value.delete(index);
-  } else {
-    expandedResults.value.add(index);
-  }
-}
-
-function highlightMatches(text: string, query: string): string {
-  if (!query.trim()) return text;
-  
-  // Split query into individual words for better highlighting
-  const words = query.trim().split(/\s+/);
-  let highlightedText = text;
-  
-  words.forEach(word => {
-    const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    highlightedText = highlightedText.replace(regex, '<span class="bg-yellow-500/30 text-yellow-200 px-1 rounded font-medium">$1</span>');
-  });
-  
-  return highlightedText;
-}
+// AIDEV-NOTE: toggleExpandResult and highlightMatches functions moved to SearchResultCard component
 
 async function openDocument(document: any) {
   // For now, just show an alert. In a real app, you'd implement PDF viewing
@@ -946,6 +930,8 @@ function getPercentage(value: number, total: number): string {
   if (total === 0) return '0';
   return ((value / total) * 100).toFixed(1);
 }
+
+// AIDEV-NOTE: getStorageTierBadge function moved to SearchResultCard component
 
 // AIDEV-NOTE: Global window declarations are defined in App.vue
 </script>

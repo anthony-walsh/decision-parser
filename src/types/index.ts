@@ -65,6 +65,18 @@ export interface SearchResult {
   overallScore: number;
 }
 
+// AIDEV-NOTE: Cold storage search result format
+export interface ColdStorageSearchResult {
+  id: string;
+  filename: string;
+  metadata: any;
+  snippet: string;
+  relevance: number;
+  tier: 'hot' | 'cold';
+  isArchived: boolean;
+  batchId?: string;
+}
+
 export interface ProcessingProgress {
   total: number;
   completed: number;

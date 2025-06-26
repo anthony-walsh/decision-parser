@@ -130,7 +130,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { db } from '@/stores/database';
+import { useStorageStore } from '@/stores';
 import type { ProcessingProgress, WorkerMessage } from '@/types';
+
+// AIDEV-NOTE: Use Vue store for document storage management
+const store = useStorageStore();
 
 const emit = defineEmits<{
   uploadComplete: [];
@@ -153,8 +157,12 @@ const progressPercentage = computed(() => {
   return Math.round(((progress.value.completed + progress.value.failed) / progress.value.total) * 100);
 });
 
-onMounted(() => {
+onMounted(async () => {
   setupWorker();
+  
+  // AIDEV-NOTE: Hot storage initialization is handled by the store
+  // Store should already be initialized by the main view
+  console.log('UploadComponent mounted, using store for document management');
 });
 
 onUnmounted(() => {
@@ -285,6 +293,17 @@ function resumeProcessing() {
 async function handleBatchComplete(batch: Array<{ document: any; searchIndex: any }>) {
   for (const item of batch) {
     try {
+      // AIDEV-NOTE: Save to hot storage through store for new SQLite-based architecture
+      try {
+        if (item.searchIndex) {
+          await store.hotStorage.addDocument(item.document, item.searchIndex);
+          console.log(`Saved document ${item.document.filename} to hot storage via store`);
+        }
+      } catch (hotStorageError) {
+        console.error(`Failed to save ${item.document.filename} to hot storage via store:`, hotStorageError);
+      }
+      
+      // Also save to legacy database for backward compatibility during migration
       if (item.searchIndex) {
         await db.addDocument(item.document);
         await db.addSearchIndex(item.searchIndex);
@@ -292,19 +311,26 @@ async function handleBatchComplete(batch: Array<{ document: any; searchIndex: an
         await db.addDocument(item.document);
       }
     } catch (error) {
-      // Failed to save document
+      console.error('Failed to save document to legacy database:', error);
     }
   }
 
   if (progress.value.completed + progress.value.failed >= progress.value.total) {
     processingStatus.value = 'completed';
     
-    // Refresh search engine after all documents are processed
+    // Refresh hot storage through store
+    try {
+      await store.hotStorage.refresh();
+    } catch (error) {
+      console.error('Failed to refresh hot storage through store:', error);
+    }
+    
+    // Refresh legacy search engine for backward compatibility
     if (window.searchEngine) {
       try {
         await window.searchEngine.refresh();
       } catch (error) {
-        // Failed to refresh search engine
+        console.error('Failed to refresh legacy search engine:', error);
       }
     }
     

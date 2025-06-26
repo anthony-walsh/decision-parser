@@ -1,13 +1,62 @@
 /**
- * Encryption Service for Cold Storage
+ * EncryptionService - AES-GCM-256 encryption for cold storage
  * 
- * Handles AES-GCM encryption and decryption of document batches
- * for secure cold storage with memory-safe operations.
+ * Provides secure encryption/decryption for document batches using:
+ * - AES-GCM-256 for encryption with authenticated encryption
+ * - PBKDF2 for key derivation (600,000 iterations)
+ * - Secure random IV generation
+ * - Memory-safe key handling
+ * 
+ * AIDEV-NOTE: Security-critical component - handles encryption keys and sensitive data
  */
 
 export class EncryptionService {
   constructor() {
+    this.algorithm = 'AES-GCM';
+    this.keyLength = 256;
+    this.ivLength = 12; // 96 bits for GCM
+    this.pbkdf2Iterations = 600000;
+    this.saltLength = 32; // 256 bits
     this.encryptionKey = null;
+  }
+
+  /**
+   * Derives encryption key from password using PBKDF2
+   * @param {string} password - User password
+   * @param {Uint8Array} salt - Random salt (32 bytes)
+   * @returns {Promise<CryptoKey>} - Derived encryption key
+   */
+  async deriveKey(password, salt) {
+    const encoder = new TextEncoder();
+    const passwordBuffer = encoder.encode(password);
+
+    // Import password as key material
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      passwordBuffer,
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
+
+    // Derive AES-GCM key
+    const key = await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: salt,
+        iterations: this.pbkdf2Iterations,
+        hash: 'SHA-256'
+      },
+      keyMaterial,
+      { name: this.algorithm, length: this.keyLength },
+      false, // Not extractable for security
+      ['encrypt', 'decrypt']
+    );
+
+    // Clear password from memory
+    passwordBuffer.fill(0);
+
+    return key;
   }
 
   /**
@@ -22,10 +71,19 @@ export class EncryptionService {
     this.encryptionKey = await crypto.subtle.importKey(
       'raw',
       keyMaterial,
-      'AES-GCM',
+      { name: this.algorithm, length: this.keyLength },
       false,
       ['encrypt', 'decrypt']
     );
+  }
+
+  /**
+   * Generates cryptographically secure random bytes
+   * @param {number} length - Number of bytes to generate
+   * @returns {Uint8Array} - Random bytes
+   */
+  generateRandomBytes(length) {
+    return crypto.getRandomValues(new Uint8Array(length));
   }
 
   /**
@@ -50,8 +108,8 @@ export class EncryptionService {
       // Compress before encryption (optional but recommended)
       const compressed = await this.compressData(plaintext);
       
-      // Generate random IV (12 bytes for AES-GCM)
-      const iv = crypto.getRandomValues(new Uint8Array(12));
+      // Generate random IV using secure random bytes
+      const iv = this.generateRandomBytes(this.ivLength);
       
       // Encrypt the compressed data
       const encrypted = await crypto.subtle.encrypt(
@@ -285,6 +343,40 @@ export class EncryptionService {
   }
 
   /**
+   * Exports key material for worker communication
+   * @param {CryptoKey} key - Key to export
+   * @returns {Promise<ArrayBuffer>} - Raw key material
+   */
+  async exportKey(key) {
+    return await crypto.subtle.exportKey('raw', key);
+  }
+
+  /**
+   * Imports key material in worker
+   * @param {ArrayBuffer} keyMaterial - Raw key material
+   * @returns {Promise<CryptoKey>} - Imported key
+   */
+  async importKey(keyMaterial) {
+    return await crypto.subtle.importKey(
+      'raw',
+      keyMaterial,
+      { name: this.algorithm, length: this.keyLength },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  }
+
+  /**
+   * Securely clears sensitive data from memory
+   * @param {Uint8Array} buffer - Buffer to clear
+   */
+  clearBuffer(buffer) {
+    if (buffer && buffer.fill) {
+      buffer.fill(0);
+    }
+  }
+
+  /**
    * Create test batch for validation
    */
   async createTestBatch() {
@@ -307,5 +399,5 @@ export class EncryptionService {
   }
 }
 
-// Export singleton instance
+// AIDEV-NOTE: Export singleton instance for consistent usage across application
 export const encryptionService = new EncryptionService();

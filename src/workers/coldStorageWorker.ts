@@ -1,9 +1,16 @@
 /**
- * Cold Storage Worker for Encrypted Batches
+ * Cold Storage Worker - Encrypted batch processing and search
  * 
- * Handles searching and retrieving archived documents from encrypted
- * JSON batches stored in /public/cold-storage/
+ * Handles:
+ * - Encrypted batch fetching and decryption
+ * - Progressive search across cold storage batches
+ * - 100MB batch cache with LRU eviction
+ * - Memory management for large document collections
+ * 
+ * AIDEV-NOTE: Worker handles sensitive decrypted data - memory cleanup is critical
  */
+
+import { EncryptionService } from '../services/EncryptionService';
 
 // AIDEV-NOTE: Worker types for message handling
 interface WorkerMessage {
@@ -42,7 +49,7 @@ interface StorageIndex {
 }
 
 class ColdStorageWorker {
-  private encryptionKey: CryptoKey | null = null;
+  private encryptionService: EncryptionService;
   private isAuthenticated = false;
   private batchCache = new Map<string, any>();
   private readonly MAX_CACHE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -51,7 +58,8 @@ class ColdStorageWorker {
   private storageIndex: StorageIndex | null = null;
 
   constructor() {
-    console.log('Cold storage worker initialized');
+    this.encryptionService = new EncryptionService();
+    console.log('Cold storage worker initialized with enhanced encryption service');
   }
 
   public async handleMessage(event: MessageEvent<WorkerMessage>) {
@@ -109,15 +117,8 @@ class ColdStorageWorker {
         throw new Error('No key material provided');
       }
 
-      // Import encryption key from main thread
-      this.encryptionKey = await crypto.subtle.importKey(
-        'raw',
-        payload.keyMaterial,
-        'AES-GCM',
-        false,
-        ['encrypt', 'decrypt']
-      );
-
+      // Initialize encryption service with key material
+      await this.encryptionService.initialize(payload.keyMaterial);
       this.isAuthenticated = true;
 
       this.postMessage({
@@ -389,34 +390,14 @@ class ColdStorageWorker {
   }
 
   private async decryptBatch(encryptedBatch: EncryptedBatch): Promise<any> {
-    if (!this.encryptionKey) {
-      throw new Error('No encryption key available');
+    if (!this.encryptionService.isInitialized()) {
+      throw new Error('Encryption service not initialized');
     }
 
     try {
-      // Validate batch structure
-      this.validateEncryptedBatch(encryptedBatch);
-
-      // Parse encrypted data
-      const iv = this.base64ToArrayBuffer(encryptedBatch.iv);
-      const encryptedData = this.base64ToArrayBuffer(encryptedBatch.data);
-
-      // Verify checksum
-      const calculatedChecksum = await this.calculateChecksum(encryptedData);
-      if (calculatedChecksum !== encryptedBatch.checksum) {
-        throw new Error('Checksum verification failed');
-      }
-
-      // Decrypt
-      const decryptedData = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: new Uint8Array(iv) },
-        this.encryptionKey,
-        encryptedData
-      );
-
-      // Decompress and parse
-      const decompressed = await this.decompressData(decryptedData);
-      return JSON.parse(decompressed);
+      // Use EncryptionService to decrypt the batch
+      const batchData = await this.encryptionService.decryptBatch(encryptedBatch);
+      return batchData;
 
     } catch (error) {
       throw new Error(`Failed to decrypt batch: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -545,67 +526,7 @@ class ColdStorageWorker {
     return new Promise(resolve => setTimeout(resolve, 10));
   }
 
-  // Utility methods for encryption/decryption
-  private validateEncryptedBatch(batch: EncryptedBatch) {
-    const required = ['version', 'algorithm', 'iv', 'data', 'checksum'];
-    for (const field of required) {
-      if (!(field in batch)) {
-        throw new Error(`Missing required field: ${field}`);
-      }
-    }
-  }
-
-  private base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes.buffer;
-  }
-
-  private async calculateChecksum(data: ArrayBuffer): Promise<string> {
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  private async decompressData(compressedData: ArrayBuffer): Promise<string> {
-    if (!globalThis.DecompressionStream) {
-      // Fallback: assume uncompressed
-      return new TextDecoder().decode(compressedData);
-    }
-
-    try {
-      const stream = new DecompressionStream('gzip');
-      const writer = stream.writable.getWriter();
-      const reader = stream.readable.getReader();
-
-      await writer.write(new Uint8Array(compressedData));
-      await writer.close();
-
-      const chunks: Uint8Array[] = [];
-      let totalSize = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        totalSize += value.byteLength;
-      }
-
-      const decompressed = new Uint8Array(totalSize);
-      let offset = 0;
-      for (const chunk of chunks) {
-        decompressed.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
-
-      return new TextDecoder().decode(decompressed);
-    } catch (error) {
-      return new TextDecoder().decode(compressedData);
-    }
-  }
+  // AIDEV-NOTE: Utility methods delegated to EncryptionService for consistency
 
   private async handleClearCache(id?: string) {
     this.batchCache.clear();

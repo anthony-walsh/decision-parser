@@ -4,6 +4,9 @@ import App from './App.vue';
 import UnifiedSearchView from './views/UnifiedSearchView.vue';
 import './style.css';
 
+// Import worker preload module to ensure workers are included in build
+import './workers/index';
+
 const routes = [
   // AIDEV-NOTE: Unified search interface is now the primary route
   { path: '/', name: 'search', component: UnifiedSearchView },
