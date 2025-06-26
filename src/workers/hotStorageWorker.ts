@@ -5,8 +5,11 @@
  * Provides <100ms search response times for immediate user feedback.
  */
 
+// @ts-ignore - sql.js and absurd-sql don't have proper TypeScript definitions
 import initSqlJs from 'sql.js';
+// @ts-ignore
 import { SQLiteFS } from 'absurd-sql';
+// @ts-ignore
 import IndexedDBBackend from 'absurd-sql/dist/indexeddb-backend';
 
 // AIDEV-NOTE: Worker types for message handling
@@ -16,22 +19,12 @@ interface WorkerMessage {
   payload: any;
 }
 
-interface AuthMessage extends WorkerMessage {
-  type: 'auth-init' | 'auth-status';
-  payload: {
-    keyMaterial?: ArrayBuffer;
-  };
-}
-
-interface DocumentMessage extends WorkerMessage {
-  type: 'store-document' | 'get-document' | 'search-documents' | 'get-stats';
-  payload: any;
-}
+// Remove unused interfaces - handled by base WorkerMessage
 
 class HotStorageWorker {
   private db: any = null;
   private isInitialized = false;
-  private isAuthenticated = false;
+  // Authentication state removed as not needed in hot storage
   private SQL: any = null;
 
   constructor() {
@@ -69,8 +62,8 @@ class HotStorageWorker {
       this.postMessage({
         type: 'error',
         payload: { 
-          message: `Hot storage initialization failed: ${error.message}`,
-          error: error.name
+          message: `Hot storage initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          error: error instanceof Error ? error.name : 'UnknownError'
         }
       });
     }
@@ -150,7 +143,7 @@ class HotStorageWorker {
     this.db.exec(schema);
   }
 
-  private async handleMessage(event: MessageEvent<WorkerMessage>) {
+  public async handleMessage(event: MessageEvent<WorkerMessage>) {
     const { type, id, payload } = event.data;
 
     try {
@@ -200,8 +193,8 @@ class HotStorageWorker {
         type: 'error',
         id,
         payload: { 
-          message: `Error handling ${type}: ${error.message}`,
-          error: error.name
+          message: `Error handling ${type}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          error: error instanceof Error ? error.name : 'UnknownError'
         }
       });
     }
@@ -211,7 +204,7 @@ class HotStorageWorker {
     try {
       if (payload.keyMaterial) {
         // Store key material for potential future use (if needed)
-        this.isAuthenticated = true;
+        // Authentication successful - hot storage doesn't need to track auth state
         this.postMessage({
           type: 'auth-complete',
           payload: { success: true }
@@ -222,7 +215,54 @@ class HotStorageWorker {
     } catch (error) {
       this.postMessage({
         type: 'auth-error',
-        payload: { message: error.message }
+        payload: { message: error instanceof Error ? error.message : 'Unknown error' }
+      });
+    }
+  }
+
+  private async handleGetDocument(payload: any, id?: string) {
+    if (!this.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+
+    const { documentId } = payload;
+
+    const stmt = this.db.prepare(`
+      SELECT 
+        d.id, d.filename, d.size, d.upload_date, d.processing_status,
+        d.metadata, d.page_count, d.last_accessed, d.access_count,
+        si.content
+      FROM documents d
+      LEFT JOIN search_index si ON d.id = si.doc_id
+      WHERE d.id = ?
+    `);
+
+    const result = stmt.get([documentId]);
+
+    if (result) {
+      // Update access count
+      const updateStmt = this.db.prepare(`
+        UPDATE documents 
+        SET last_accessed = CURRENT_TIMESTAMP, access_count = access_count + 1 
+        WHERE id = ?
+      `);
+      updateStmt.run([documentId]);
+
+      this.postMessage({
+        type: 'get-document-complete',
+        id,
+        payload: { 
+          document: {
+            ...result,
+            metadata: JSON.parse(result.metadata || '{}')
+          }
+        }
+      });
+    } else {
+      this.postMessage({
+        type: 'get-document-complete',
+        id,
+        payload: { document: null }
       });
     }
   }
@@ -339,7 +379,7 @@ class HotStorageWorker {
       }
 
       // Parse metadata JSON
-      const processedResults = results.map(result => ({
+      const processedResults = results.map((result: any) => ({
         ...result,
         metadata: JSON.parse(result.metadata || '{}'),
         tier: 'hot',
@@ -386,7 +426,7 @@ class HotStorageWorker {
     const stmt = this.db.prepare(sql);
     const results = stmt.all([`%${query}%`, limit, offset]);
 
-    const processedResults = results.map(result => ({
+    const processedResults = results.map((result: any) => ({
       ...result,
       metadata: JSON.parse(result.metadata || '{}'),
       tier: 'hot',
@@ -454,7 +494,7 @@ class HotStorageWorker {
       maxCandidates
     ]);
 
-    const processedCandidates = candidates.map(candidate => ({
+    const processedCandidates = candidates.map((candidate: any) => ({
       ...candidate,
       metadata: JSON.parse(candidate.metadata || '{}')
     }));

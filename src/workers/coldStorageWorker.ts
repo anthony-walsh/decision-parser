@@ -54,7 +54,7 @@ class ColdStorageWorker {
     console.log('Cold storage worker initialized');
   }
 
-  private async handleMessage(event: MessageEvent<WorkerMessage>) {
+  public async handleMessage(event: MessageEvent<WorkerMessage>) {
     const { type, id, payload } = event.data;
 
     try {
@@ -96,8 +96,8 @@ class ColdStorageWorker {
         type: 'error',
         id,
         payload: { 
-          message: `Error handling ${type}: ${error.message}`,
-          error: error.name
+          message: `Error handling ${type}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          error: error instanceof Error ? error.name : 'UnknownError'
         }
       });
     }
@@ -130,7 +130,7 @@ class ColdStorageWorker {
       this.postMessage({
         type: 'auth-error',
         id,
-        payload: { message: error.message }
+        payload: { message: error instanceof Error ? error.message : 'Unknown error' }
       });
     }
   }
@@ -144,6 +144,10 @@ class ColdStorageWorker {
       }
 
       this.storageIndex = await response.json();
+      
+      if (!this.storageIndex) {
+        throw new Error('Invalid storage index format');
+      }
 
       this.postMessage({
         type: 'storage-index-loaded',
@@ -158,7 +162,32 @@ class ColdStorageWorker {
       this.postMessage({
         type: 'storage-index-error',
         id,
-        payload: { message: error.message }
+        payload: { message: error instanceof Error ? error.message : 'Unknown error' }
+      });
+    }
+  }
+
+  private async handleGetBatch(payload: any, id?: string) {
+    if (!this.isAuthenticated) {
+      throw new Error('Not authenticated');
+    }
+
+    const { batchId } = payload;
+
+    try {
+      const batchData = await this.getBatchData({ batchId } as BatchInfo);
+
+      this.postMessage({
+        type: 'get-batch-complete',
+        id,
+        payload: { batchData }
+      });
+
+    } catch (error) {
+      this.postMessage({
+        type: 'get-batch-error',
+        id,
+        payload: { message: error instanceof Error ? error.message : 'Unknown error' }
       });
     }
   }
@@ -173,7 +202,7 @@ class ColdStorageWorker {
     }
 
     const { query, options = {} } = payload;
-    const { limit = 50, dateFilter } = options;
+    const { limit = 50 } = options;
 
     try {
       // Find relevant batches based on query and filters
@@ -255,7 +284,7 @@ class ColdStorageWorker {
       this.postMessage({
         type: 'cold-search-error',
         id,
-        payload: { message: error.message }
+        payload: { message: error instanceof Error ? error.message : 'Unknown error' }
       });
     }
   }
@@ -323,7 +352,7 @@ class ColdStorageWorker {
         chunkResults.push(...batchResults);
 
       } catch (error) {
-        console.warn(`Failed to search batch ${batch.batchId}:`, error);
+        console.warn(`Failed to search batch ${batch.batchId}:`, error instanceof Error ? error.message : 'Unknown error');
         // Continue with other batches
       }
     }
@@ -390,7 +419,7 @@ class ColdStorageWorker {
       return JSON.parse(decompressed);
 
     } catch (error) {
-      throw new Error(`Failed to decrypt batch: ${error.message}`);
+      throw new Error(`Failed to decrypt batch: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
