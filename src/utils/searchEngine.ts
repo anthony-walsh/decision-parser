@@ -1,5 +1,5 @@
 import fuzzysort from 'fuzzysort';
-import type { SearchIndex, SearchResult, Document } from '@/types';
+import type { SearchIndex, SearchResult, Document, DateFilter } from '@/types';
 import { db } from '@/stores/database';
 
 export class SearchEngine {
@@ -71,7 +71,7 @@ export class SearchEngine {
     }
   }
 
-  async search(query: string, limit: number = 50): Promise<SearchResult[]> {
+  async search(query: string, limit: number = 50, dateFilter?: DateFilter): Promise<SearchResult[]> {
     // Validate search requirements
     if (!query || typeof query !== 'string' || !query.trim()) {
       throw new Error('Search query is required and must be a non-empty string');
@@ -124,14 +124,20 @@ export class SearchEngine {
         }
       }
 
+      // AIDEV-NOTE: Apply date filtering if specified
+      let filteredResults = searchResults;
+      if (dateFilter && dateFilter.type !== 'all') {
+        filteredResults = this.applyDateFilter(searchResults, dateFilter);
+      }
+
       // Save search history (but don't fail search if this fails)
       try {
-        await db.addSearchHistory(trimmedQuery, searchResults.length);
+        await db.addSearchHistory(trimmedQuery, filteredResults.length);
       } catch (historyError) {
         // Ignore search history errors
       }
 
-      return searchResults;
+      return filteredResults;
     } catch (error) {
       throw new Error(`Search failed: ${error instanceof Error ? error.message : 'Unknown search error'}`);
     }
@@ -263,5 +269,106 @@ export class SearchEngine {
 
   getThreshold(): number {
     return this.threshold;
+  }
+
+  // AIDEV-NOTE: Date filtering functionality for Decision Date metadata
+  private applyDateFilter(results: SearchResult[], dateFilter: DateFilter): SearchResult[] {
+    return results.filter(result => {
+      const decisionDate = result.document.metadata?.decisionDate;
+      
+      // Skip documents without valid decision dates
+      if (!decisionDate || decisionDate === 'NOT_FOUND') {
+        return false;
+      }
+
+      const resultDate = this.parseDecisionDate(decisionDate);
+      if (!resultDate) {
+        return false;
+      }
+
+      return this.isDateInRange(resultDate, dateFilter);
+    });
+  }
+
+  private parseDecisionDate(dateString: string): Date | null {
+    try {
+      // Handle various date formats that might appear in planning appeals
+      // Common formats: DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, DD Month YYYY
+      
+      // Try parsing as-is first (handles ISO format)
+      let parsedDate = new Date(dateString);
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate;
+      }
+
+      // Try DD/MM/YYYY format
+      const ddmmyyyyMatch = dateString.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (ddmmyyyyMatch) {
+        const [, day, month, year] = ddmmyyyyMatch;
+        parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        if (!isNaN(parsedDate.getTime())) {
+          return parsedDate;
+        }
+      }
+
+      // Try DD Month YYYY format (e.g., "15 March 2023")
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthMatch = dateString.match(/^(\d{1,2})\s+(\w+)\s+(\d{4})$/i);
+      if (monthMatch) {
+        const [, day, monthName, year] = monthMatch;
+        const monthIndex = monthNames.findIndex(name => 
+          name.toLowerCase().startsWith(monthName.toLowerCase())
+        );
+        if (monthIndex !== -1) {
+          parsedDate = new Date(parseInt(year), monthIndex, parseInt(day));
+          if (!isNaN(parsedDate.getTime())) {
+            return parsedDate;
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  private isDateInRange(date: Date, dateFilter: DateFilter): boolean {
+    const dateTime = date.getTime();
+
+    switch (dateFilter.type) {
+      case 'earlierThan':
+        if (dateFilter.earlierThan) {
+          const maxDate = new Date(dateFilter.earlierThan);
+          return dateTime <= maxDate.getTime();
+        }
+        return true;
+
+      case 'laterThan':
+        if (dateFilter.laterThan) {
+          const minDate = new Date(dateFilter.laterThan);
+          return dateTime >= minDate.getTime();
+        }
+        return true;
+
+      case 'range':
+        let withinRange = true;
+        if (dateFilter.laterThan) {
+          const minDate = new Date(dateFilter.laterThan);
+          withinRange = withinRange && dateTime >= minDate.getTime();
+        }
+        if (dateFilter.earlierThan) {
+          const maxDate = new Date(dateFilter.earlierThan);
+          withinRange = withinRange && dateTime <= maxDate.getTime();
+        }
+        return withinRange;
+
+      case 'all':
+      default:
+        return true;
+    }
   }
 }

@@ -78,6 +78,13 @@ export interface WorkerMessage {
   payload?: any;
 }
 
+// AIDEV-NOTE: Date filter configuration for search functionality
+export interface DateFilter {
+  type: 'all' | 'earlierThan' | 'laterThan' | 'range';
+  earlierThan?: string; // ISO date string
+  laterThan?: string; // ISO date string
+}
+
 export interface SearchSummaryData {
   totalResults: number;
   uniqueDocuments: number;
@@ -100,5 +107,9 @@ export interface SearchSummaryData {
       start: string | null;
       end: string | null;
     };
+  };
+  // AIDEV-NOTE: Add applied filter information to search summary
+  appliedFilters?: {
+    dateFilter?: DateFilter;
   };
 }
