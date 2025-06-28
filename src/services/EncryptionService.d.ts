@@ -10,6 +10,7 @@ export interface EncryptedBatch {
   iv: string;
   data: string;
   checksum: string;
+  salt?: string; // AIDEV-NOTE: Added salt field for batch-specific encryption
   metadata: {
     batchId: string;
     documentCount: number;
