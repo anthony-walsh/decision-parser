@@ -110,8 +110,9 @@ For sensitive changes (Input Handling, Monetary Calculations, Authentication), e
 
 ## 1. Project Overview
 
-This project is a web based application to allow users to upload and search the contents of PDF files.
+This project is a web-based application for processing and searching UK Planning Appeal decision letters. The application provides encrypted document storage, advanced search capabilities, and secure access to large archives of legal documents through a modern cold storage architecture.
 
+**AIDEV-NOTE**: This application recently completed a major migration from Dexie.js to a cold storage only architecture (January 2025). All document processing now uses encrypted batch storage with worker-based search for enhanced security and performance.
 
 **Golden rule**: When unsure about implementation details or requirements, ALWAYS consult the developer rather than making assumptions.
 
@@ -147,7 +148,7 @@ This project is a web based application to allow users to upload and search the 
 - **Vue 3**: Modern JavaScript framework with Composition API
 - **Tailwind CSS**: Utility-first CSS framework for modern styling
 - **Vue Router 4**: Client-side routing for single-page application
-- **Dexie.js**: IndexedDB wrapper for local document storage
+- **Cold Storage Architecture**: Encrypted batch-based document storage
 
 #### Build Tools & Development
 - **Vite**: Fast build tool and development server
@@ -157,9 +158,18 @@ This project is a web based application to allow users to upload and search the 
 
 #### Document Processing & Search
 - **PDF.js**: Client-side PDF parsing and text extraction
-- **Fuzzysort**: High-performance fuzzy search library
-- **Web Workers**: Background PDF processing for better performance
-- **IndexedDB**: Browser-based document storage and indexing
+- **Cold Storage Workers**: Encrypted batch processing with web workers
+- **AES-256-GCM Encryption**: Secure document storage and transmission
+- **Progressive Search**: Worker-based search across encrypted document batches
+- **Appeal Import Service**: Automated download and processing of UK Planning Appeal decisions
+
+#### Cold Storage Architecture
+- **Encrypted Batches**: Documents stored in AES-256-GCM encrypted JSON files
+- **Salt-Embedded Authentication**: Each batch has unique salt for key derivation
+- **Worker-Based Processing**: All encryption/decryption happens in web workers
+- **Progressive Loading**: Batches loaded on-demand with intelligent caching
+- **Memory Management**: LRU cache with automatic cleanup and resource monitoring
+- **Authentication Service**: Challenge-response system without storing passwords
 
 ### 🔧 MCP (Model Context Protocol) Servers
 
@@ -458,11 +468,12 @@ mcp__memory-bank__memory_bank_write("debugging-patterns", "performance-debug-che
 
 | Purpose | Location | Description |
 |---------|----------|-------------|
-| **Components** | `src/components/` | Reusable UI components |
-| **Views** | `src/views/` | Page-level document search interface |
-| **Services** | `src/services/` | PDF processing and storage services |
-| **Workers** | `src/workers/` | Background PDF processing workers |
-| **Utils** | `src/utils/` | Document processing utilities |
+| **Components** | `src/components/` | Authentication, search results, debug panels |
+| **Views** | `src/views/` | UnifiedSearchView - main search interface |
+| **Services** | `src/services/` | Cold storage, encryption, authentication, appeal import |
+| **Workers** | `src/workers/` | Cold storage worker for encrypted batch processing |
+| **Utils** | `src/utils/` | Search history, data transformation, logging, validation |
+| **Stores** | `src/stores/` | Vue reactive state management for cold storage |
 | **Tests** | `tests/` | Unit and integration test files |
 
 ---
@@ -619,50 +630,44 @@ function process_data(data)
 ```
 src/
 ├── components/          # Reusable UI components
-│   ├── ModernCard.vue  # Flexible card component with variants
-│   ├── StatCard.vue    # Statistics display component
-│   ├── ThemeToggle.vue # Dark/light mode toggle
-│   └── FavoriteIcon.vue
+│   ├── AuthenticationSetup.vue  # Password setup and login interface
+│   ├── PerformanceIndicator.vue # System resource monitoring
+│   ├── SearchDebugPanel.vue     # Search diagnostics and debugging
+│   └── SearchResultCard.vue     # Individual search result display
 ├── views/               # Page-level components
-│   ├── dashboard/       # Dashboard-specific views
-│   │   ├── DashboardHome.vue    # Role-based dashboard
-│   │   ├── MyRotaView.vue       # Personal schedule
-│   │   ├── RotaOverview.vue     # Rota management
-│   │   ├── ShiftSwapsView.vue   # Shift swap approvals
-│   │   ├── ShiftTypesView.vue   # Shift configuration
-│   │   └── UsersView.vue        # User management
-│   ├── Dashboard.vue    # Main dashboard layout
-│   ├── Login.vue       # Authentication interface
-│   └── Home.vue        # Landing page
+│   └── UnifiedSearchView.vue    # Main search interface with authentication
 ├── services/            # Business logic and API calls
-│   ├── auth.js         # Authentication service
-│   ├── locations.js    # Location management
-│   └── shifts.js       # Shift management
-├── store/               # Vuex state management
-│   ├── modules/
-│   │   ├── auth.js     # Authentication state
-│   │   ├── locations.js # Location state
-│   │   ├── rotas.js    # Rota state
-│   │   ├── shifts.js   # Shift state
-│   │   └── theme.js    # Theme state
-│   └── index.js        # Store configuration
-├── router/              # Vue Router configuration
-│   └── index.js        # Route definitions and guards
-├── assets/              # Static assets
-│   ├── base.css        # Design system tokens
-│   ├── main.css        # Global styles
-│   └── logo.svg
-└── types/               # Type definitions
-    └── UserType.js     # User role definitions
+│   ├── AppealImportService.ts   # Automated appeal decision import
+│   ├── AuthenticationService.js # Challenge-response authentication
+│   ├── ColdStorageService.js   # Encrypted batch storage management
+│   ├── EncryptionService.js    # AES-256-GCM encryption utilities
+│   ├── MemoryManager.js        # Memory usage monitoring and cleanup
+│   ├── PerformanceMonitor.js   # Performance metrics and alerts
+│   └── ServiceProvider.js      # Service coordination and dependency injection
+├── stores/              # Vue reactive state management
+│   └── index.ts         # Cold storage and authentication state
+├── workers/             # Web worker implementations
+│   ├── coldStorageWorker.ts # Encrypted batch processing worker
+│   └── index.ts         # Worker factory and management
+├── utils/               # Utility functions and helpers
+│   ├── BrowserResourceManager.js # Browser API resource monitoring
+│   ├── appealDataTransformer.ts  # Appeal metadata transformation
+│   ├── appealDecisionLetterDownloader.ts # Document download utilities
+│   ├── dataValidator.ts         # Data validation and sanitization
+│   ├── logger.ts               # Structured logging system
+│   ├── metadataExtractor.ts    # PDF metadata extraction
+│   └── searchHistoryService.ts # localStorage-based search history
+└── types/               # TypeScript type definitions
+    └── index.ts         # Core application types
 ```
 
 **Key domain models**:
-- **Documents**: PDF files with metadata (filename, size, upload date, processing status)
-- **Search Index**: Full-text search indexes for document content
-- **Search Results**: Query results with relevance scoring and highlighting
-- **Search History**: Previously executed searches for user convenience
-- **Saved Searches**: Bookmarked queries for quick access
-- **Document Content**: Extracted text content from PDF processing
+- **Cold Storage Batches**: Encrypted document collections with salt-embedded authentication
+- **Appeal Documents**: UK Planning Appeal decision letters with structured metadata
+- **Search Results**: Worker-based query results with relevance scoring and highlighting
+- **Search History**: localStorage-based search query history (no longer database-stored)
+- **Authentication State**: Challenge-response authentication for encrypted batch access
+- **Appeal Metadata**: LPA, inspector, decision outcome, reference numbers, dates
 
 ---
 
@@ -841,9 +846,10 @@ Need UI functionality?
 
 ```
 Data needed by multiple components?
-├── YES → Use local storage or IndexedDB
-│   ├── Document data → Dexie.js database (documents, searchIndex)
-│   └── UI state → Local component state or props
+├── YES → Use appropriate storage layer
+│   ├── Document data → Cold storage (encrypted batches via workers)
+│   ├── Search history → localStorage (searchHistoryService)
+│   └── Authentication state → Vue reactive store
 └── NO → Local component state (ref/reactive)
     ├── Form data → Local state
     └── Temporary UI → Local state  
@@ -854,9 +860,11 @@ Data needed by multiple components?
 ```
 New service functionality needed?
 ├── Document processing domain → Existing service file
-│   ├── PDF Processing → services/pdfProcessor.js
-│   ├── Search → services/searchService.js  
-│   └── Storage → services/storageService.js
+│   ├── Cold Storage → services/ColdStorageService.js
+│   ├── Authentication → services/AuthenticationService.js
+│   ├── Appeal Import → services/AppealImportService.ts
+│   ├── Encryption → services/EncryptionService.js
+│   └── Performance → services/PerformanceMonitor.js
 └── New domain → Create new service file
     └── Follow existing patterns with error handling
 ```
@@ -888,9 +896,11 @@ Need additional capabilities?
 ## 16. Domain-Specific Terminology
 
 *   **AIDEV-NOTE/TODO/QUESTION**: Specially formatted comments to provide inline context or tasks for AI assistants and developers.
-*   **Document Processing**: Core business domain for PDF parsing and content extraction
-*   **Search Index**: Full-text search capabilities for document content
-*   **Fuzzy Search**: Approximate string matching for flexible document queries
+*   **Cold Storage**: Encrypted batch-based document storage architecture with AES-256-GCM encryption
+*   **Appeal Processing**: Automated import and processing of UK Planning Appeal decision letters
+*   **Salt-Embedded Authentication**: Encryption approach where batch-specific salts enable secure key derivation
+*   **Worker-Based Search**: Non-blocking search operations performed in web workers for better performance
+*   **Challenge-Response Auth**: Password verification system without storing actual passwords
 *   **MCP (Model Context Protocol)**: Extended AI capabilities through server plugins for research, code analysis, browser automation, and knowledge management
 *   **Context7**: Library documentation service for API reference and usage patterns
 *   **Sequential Thinking**: Structured problem-solving approach for complex technical challenges
