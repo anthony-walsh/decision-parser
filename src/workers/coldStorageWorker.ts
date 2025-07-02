@@ -1143,13 +1143,13 @@ class ColdStorageWorker {
       }
 
       if (relevance > 0) {
+        // AIDEV-NOTE: Include all document fields except content for comprehensive metadata  
+        const { content: _, ...documentFields } = document;
+        
         // Extract snippet around first match
         const snippet = this.extractSnippet(content, matches[0]);
-
         results.push({
-          id: document.id,
-          filename: document.filename,
-          metadata: document.metadata || {},
+          ...documentFields, // Includes id, filename, case_type, case_id, lpa_name, decision_outcome, etc.
           snippet,
           relevance,
           tier: 'cold',

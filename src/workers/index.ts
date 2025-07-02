@@ -9,17 +9,12 @@
 
 // Import workers to ensure they're included in build
 // These imports ensure Vite includes the workers in the bundle
-import './hotStorageWorker?worker';
+// AIDEV-NOTE: Simplified to only include cold storage worker
 import './coldStorageWorker?worker';
-import './migrationWorker?worker';
-import './pdfProcessor?worker';
 
 // Export worker paths for runtime loading
 export const WORKER_PATHS = {
-  hotStorage: '/src/workers/hotStorageWorker.ts',
-  coldStorage: '/src/workers/coldStorageWorker.ts',
-  migration: '/src/workers/migrationWorker.ts',
-  pdfProcessor: '/src/workers/pdfProcessor.ts'
+  coldStorage: '/src/workers/coldStorageWorker.ts'
 } as const;
 
 // Worker configuration for production

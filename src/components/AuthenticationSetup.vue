@@ -10,10 +10,10 @@
           </svg>
         </div>
         <h1 class="text-2xl font-bold text-gray-100 mb-2">
-          {{ isSetup ? 'Authentication Required' : 'Security Setup' }}
+          {{ isAuthenticatedSetup ? 'Authentication Required' : 'Security Setup' }}
         </h1>
         <p class="text-gray-400">
-          {{ isSetup 
+          {{ isAuthenticatedSetup 
             ? 'Enter your password to access encrypted document archive' 
             : 'Create a password to secure your document archive'
           }}
@@ -26,17 +26,17 @@
           <!-- Password Input -->
           <div>
             <label for="password" class="block text-sm font-medium text-gray-300 mb-2">
-              {{ isSetup ? 'Password' : 'Create Password' }}
+              {{ isAuthenticatedSetup ? 'Password' : 'Create Password' }}
             </label>
             <div class="relative">
               <input
                 id="password"
                 v-model="password"
                 :type="showPassword ? 'text' : 'password'"
-                :placeholder="isSetup ? 'Enter your password' : 'Choose a secure password'"
+                :placeholder="isAuthenticatedSetup ? 'Enter your password' : 'Choose a secure password'"
                 class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
                 required
-                :minlength="isSetup ? 1 : 8"
+                :minlength="isAuthenticatedSetup ? 1 : 12"
               />
               <button
                 type="button"
@@ -55,7 +55,7 @@
           </div>
 
           <!-- Confirm Password (Setup only) -->
-          <div v-if="!isSetup">
+          <div v-if="!isAuthenticatedSetup">
             <label for="confirmPassword" class="block text-sm font-medium text-gray-300 mb-2">
               Confirm Password
             </label>
@@ -66,20 +66,20 @@
               placeholder="Confirm your password"
               class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
               required
-              minlength="8"
+              minlength="12"
             />
-            <p v-if="!isSetup && password && confirmPassword && password !== confirmPassword" class="text-red-400 text-xs mt-1">
+            <p v-if="!isAuthenticatedSetup && password && confirmPassword && password !== confirmPassword" class="text-red-400 text-xs mt-1">
               Passwords do not match
             </p>
           </div>
 
           <!-- Security Requirements (Setup only) -->
-          <div v-if="!isSetup" class="bg-blue-900/20 border border-blue-800/30 rounded-lg p-3">
+          <div v-if="!isAuthenticatedSetup" class="bg-blue-900/20 border border-blue-800/30 rounded-lg p-3">
             <h4 class="text-sm font-medium text-blue-300 mb-2">Password Requirements</h4>
             <ul class="text-xs text-blue-200 space-y-1">
               <li class="flex items-center">
-                <span :class="password.length >= 8 ? 'text-green-400' : 'text-gray-400'" class="mr-2">•</span>
-                At least 8 characters long
+                <span :class="password.length >= 12 ? 'text-green-400' : 'text-gray-400'" class="mr-2">•</span>
+                At least 12 characters long
               </li>
               <li class="flex items-center">
                 <span :class="/[A-Z]/.test(password) ? 'text-green-400' : 'text-gray-400'" class="mr-2">•</span>
@@ -92,6 +92,10 @@
               <li class="flex items-center">
                 <span :class="/[0-9]/.test(password) ? 'text-green-400' : 'text-gray-400'" class="mr-2">•</span>
                 Contains number
+              </li>
+              <li class="flex items-center">
+                <span :class="/[^A-Za-z0-9]/.test(password) ? 'text-green-400' : 'text-gray-400'" class="mr-2">•</span>
+                Contains special character
               </li>
             </ul>
           </div>
@@ -109,22 +113,22 @@
           <!-- Submit Button -->
           <button
             type="submit"
-            :disabled="isLoading || (!isSetup && (!isPasswordValid || password !== confirmPassword))"
+            :disabled="isLoading || (!isAuthenticatedSetup && (!isPasswordValid || password !== confirmPassword))"
             class="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-gray-800 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
           >
             <div v-if="isLoading" class="flex items-center justify-center">
               <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-              {{ isSetup ? 'Authenticating...' : 'Creating Security...' }}
+              {{ isAuthenticatedSetup ? 'Authenticating...' : 'Creating Security...' }}
             </div>
             <span v-else>
-              {{ isSetup ? 'Unlock Archive' : 'Setup Security' }}
+              {{ isAuthenticatedSetup ? 'Unlock Archive' : 'Setup Security' }}
             </span>
           </button>
         </form>
 
         <!-- Additional Actions -->
         <div class="mt-4 pt-4 border-t border-gray-700">
-          <div v-if="isSetup" class="flex justify-between items-center">
+          <div v-if="isAuthenticatedSetup" class="flex justify-between items-center">
             <button
               @click="skipColdStorage"
               class="text-sm text-gray-400 hover:text-gray-200 transition-colors"
@@ -213,6 +217,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useStorageStore } from '@/stores';
+import { authService } from '@/services/AuthenticationService.js';
 
 // Component props
 interface Props {
@@ -241,27 +246,44 @@ const isLoading = ref(false);
 const error = ref('');
 const showResetConfirmation = ref(false);
 
+// AIDEV-NOTE: Determine setup mode based on authentication service state
+const isAuthenticatedSetup = computed(() => {
+  // Check if authentication challenge exists (means password is already set up)
+  const authState = authService.getAuthState();
+  return props.isSetup || authState.hasChallenge;
+});
+
 // Password validation
 const isPasswordValid = computed(() => {
-  if (props.isSetup) return password.value.length > 0; // Existing password just needs to be entered
+  if (isAuthenticatedSetup.value) return password.value.length > 0; // Existing password just needs to be entered
   
-  // New password requirements
-  return password.value.length >= 8 &&
+  // New password requirements - updated to match AuthenticationService requirements
+  return password.value.length >= 12 &&
          /[A-Z]/.test(password.value) &&
          /[a-z]/.test(password.value) &&
-         /[0-9]/.test(password.value);
+         /[0-9]/.test(password.value) &&
+         /[^A-Za-z0-9]/.test(password.value);
 });
 
 // AIDEV-NOTE: Initialize component based on authentication state
 onMounted(async () => {
   try {
-    // Check if authentication system is already initialized
-    if (!store.state.authentication.isInitialized) {
-      await store.auth.setInitialized(true);
+    // Check if authentication is already set up by checking for stored challenge
+    const authState = authService.getAuthState();
+    console.log('[AuthenticationSetup] Component mounted, auth state:', authState);
+    
+    if (!authState.isInitialized && !authState.hasChallenge) {
+      console.log('[AuthenticationSetup] No authentication setup found, component in setup mode');
     }
-  } catch (error) {
-    console.error('Failed to initialize authentication:', error);
-    emit('skipColdStorage');
+    
+    // Initialize store authentication state based on service state
+    if (!store.state.authentication.isInitialized) {
+      await store.auth.setInitialized(authState.isInitialized);
+      await store.auth.setAuthenticated(authState.isAuthenticated);
+    }
+  } catch (authError) {
+    console.error('Failed to initialize authentication:', authError);
+    error.value = 'Failed to initialize authentication system';
   }
 });
 
@@ -273,14 +295,17 @@ async function handleSubmit() {
   isLoading.value = true;
   
   try {
-    if (props.isSetup) {
+    if (isAuthenticatedSetup.value) {
       // Authenticate with existing password
-      // TODO: Implement actual authentication with password
-      const success = true; // Placeholder - implement with actual auth service
-      store.auth.setAuthenticated(success);
+      console.log('[AuthenticationSetup] Attempting authentication with existing password');
+      const success = await authService.verifyPassword(password.value);
+      
       if (success) {
+        console.log('[AuthenticationSetup] Authentication successful');
+        await store.auth.setAuthenticated(true);
         emit('authenticationComplete', true);
       } else {
+        console.log('[AuthenticationSetup] Authentication failed - invalid password');
         error.value = 'Invalid password. Please try again.';
       }
     } else {
@@ -295,18 +320,24 @@ async function handleSubmit() {
         return;
       }
       
-      // TODO: Implement actual password setup
-      const success = true; // Placeholder - implement with actual auth service
-      store.auth.setAuthenticated(success);
+      console.log('[AuthenticationSetup] Setting up new password authentication');
+      const success = await authService.setupPassword(password.value);
+      
       if (success) {
+        console.log('[AuthenticationSetup] Password setup successful');
+        await store.auth.setAuthenticated(true);
+        await store.auth.setInitialized(true);
         emit('authenticationComplete', true);
       } else {
+        console.log('[AuthenticationSetup] Password setup failed');
         error.value = 'Failed to setup authentication. Please try again.';
       }
     }
   } catch (err) {
     console.error('Authentication error:', err);
-    error.value = err instanceof Error ? err.message : 'Authentication failed. Please try again.';
+    const errorMessage = err instanceof Error ? err.message : 'Authentication failed. Please try again.';
+    error.value = errorMessage;
+    console.log('[AuthenticationSetup] Authentication error:', errorMessage);
   } finally {
     isLoading.value = false;
   }
@@ -326,13 +357,22 @@ function skipColdStorage() {
 async function confirmReset() {
   isLoading.value = true;
   try {
-    // TODO: Implement actual password reset
-    store.auth.setAuthenticated(false);
-    store.auth.setInitialized(false);
+    console.log('[AuthenticationSetup] Performing password reset and data cleanup');
+    
+    // Reset authentication using the service (clears all data)
+    await authService.resetPassword();
+    
+    // Update store state
+    await store.auth.setAuthenticated(false);
+    await store.auth.setInitialized(false);
+    
+    console.log('[AuthenticationSetup] Password reset completed successfully');
     emit('resetPassword');
   } catch (err) {
     console.error('Reset failed:', err);
-    error.value = 'Failed to reset password. Please try again.';
+    const errorMessage = err instanceof Error ? err.message : 'Failed to reset password. Please try again.';
+    error.value = errorMessage;
+    console.log('[AuthenticationSetup] Password reset error:', errorMessage);
   } finally {
     isLoading.value = false;
     showResetConfirmation.value = false;

@@ -16,7 +16,6 @@
 
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
-import { SearchEngine } from '@/utils/searchEngine';
 import { authService } from '@/services/AuthenticationService.js';
 import { useStorageStore } from '@/stores';
 import AuthenticationSetup from '@/components/AuthenticationSetup.vue';
@@ -24,10 +23,6 @@ import AuthenticationSetup from '@/components/AuthenticationSetup.vue';
 // Store
 const store = useStorageStore();
 
-// Search engine state
-let searchEngine: SearchEngine | null = null;
-const initializationError = ref<string | null>(null);
-const isInitializing = ref(true);
 
 // Authentication state
 const showAuthenticationSetup = ref(false);
@@ -57,38 +52,6 @@ onMounted(async () => {
     console.error('[App] Failed to initialize authentication:', error);
   }
   
-  // Initialize search engine
-  try {
-    searchEngine = new SearchEngine();
-    await searchEngine.initialize();
-    
-    // Make search engine available globally
-    if (typeof window !== 'undefined') {
-      window.searchEngine = searchEngine;
-      window.searchEngineStatus = {
-        initialized: true,
-        error: null,
-        isInitializing: false
-      };
-      
-    }
-    isInitializing.value = false;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown initialization error';
-    
-    initializationError.value = errorMessage;
-    isInitializing.value = false;
-    
-    // Make error status available globally
-    if (typeof window !== 'undefined') {
-      window.searchEngine = null;
-      window.searchEngineStatus = {
-        initialized: false,
-        error: errorMessage,
-        isInitializing: false
-      };
-    }
-  }
 });
 
 // AIDEV-NOTE: Authentication event handlers
@@ -167,15 +130,4 @@ if (typeof window !== 'undefined') {
   window.showAuthentication = showAuthentication;
 }
 
-// Make search engine available globally
-declare global {
-  interface Window {
-    searchEngine: SearchEngine | null;
-    searchEngineStatus: {
-      initialized: boolean;
-      error: string | null;
-      isInitializing: boolean;
-    };
-  }
-}
 </script>

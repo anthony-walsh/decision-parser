@@ -296,6 +296,46 @@ class PerformanceMonitor {
     }
   }
 
+  // AIDEV-NOTE: Record frame rate metric
+  recordFrameRate(frameRate, timestamp = new Date()) {
+    const metric = {
+      id: this.generateMetricId(),
+      frameRate,
+      timestamp,
+      target: 60 // Target FPS for comparison
+    };
+    
+    this.addMetric('frameRate', metric);
+    
+    // Check for low frame rate alerts
+    if (frameRate < 30) {
+      this.recordAlert('low_framerate', `Low frame rate: ${frameRate}fps`, {
+        frameRate,
+        target: 60
+      });
+    }
+  }
+
+  // AIDEV-NOTE: Record CPU usage metric
+  recordCPUUsage(usage, timestamp = new Date()) {
+    const metric = {
+      id: this.generateMetricId(),
+      usage,
+      timestamp,
+      category: usage > 80 ? 'high' : usage > 50 ? 'medium' : 'low'
+    };
+    
+    this.addMetric('cpuUsage', metric);
+    
+    // Check for high CPU usage alerts
+    if (usage > 80) {
+      this.recordAlert('high_cpu', `High CPU usage: ${usage}%`, {
+        usage,
+        threshold: 80
+      });
+    }
+  }
+
   // AIDEV-NOTE: Record network operation performance
   recordNetworkOperation(url, method, duration, size, status) {
     const metric = {

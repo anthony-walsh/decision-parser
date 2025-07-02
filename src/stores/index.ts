@@ -137,7 +137,7 @@ export const useStorageStore = () => {
         size: 0, // Not available in cold storage
         uploadDate: new Date(), // Not available, use current date
         processingStatus: 'completed' as const,
-        metadata: coldResult.metadata
+        metadata: coldResult as any // Worker now includes all document fields directly
       },
       matches: [{
         content: coldResult.snippet,
@@ -159,44 +159,6 @@ export const useStorageStore = () => {
   );
   
 
-  // AIDEV-NOTE: Legacy Dexie search actions (fallback for when cold storage not available)
-  const legacySearchActions = {
-    async search(query: string, options: any = {}) {
-      try {
-        console.log('[StorageStore] Performing legacy search for:', query);
-        const startTime = performance.now();
-        
-        // Use existing search engine from window if available
-        let results: SearchResult[] = [];
-        if (window.searchEngine && typeof (window.searchEngine as any).performSearch === 'function') {
-          results = await (window.searchEngine as any).performSearch(query, options);
-          console.log('[StorageStore] Legacy search returned:', results.length, 'results');
-        } else {
-          console.warn('[StorageStore] Legacy search engine not available');
-        }
-        
-        const endTime = performance.now();
-        storageState.search.performance.legacySearchTime = Math.round(endTime - startTime);
-        
-        storageState.search.results.legacy = results;
-        storageState.search.results.isLegacyComplete = true;
-        storageState.search.query = query;
-        
-        // Add to search history
-        if (query && !storageState.search.history.includes(query)) {
-          storageState.search.history.unshift(query);
-          storageState.search.history = storageState.search.history.slice(0, 20); // Keep last 20
-        }
-        
-        return results;
-      } catch (error) {
-        console.error('[StorageStore] Legacy search failed:', error);
-        storageState.search.results.legacy = [];
-        storageState.search.results.isLegacyComplete = true;
-        return [];
-      }
-    }
-  };
 
   // AIDEV-NOTE: Cold storage actions with feature flag checking
   const coldStorageActions = {
@@ -441,46 +403,42 @@ export const useStorageStore = () => {
     },
 
     async performUnifiedSearch(query: string, options: any = {}) {
-      console.log('[StorageStore] Starting unified search for:', query);
+      console.log('[StorageStore] Starting cold storage search for:', query);
       searchActions.clearResults();
       storageState.search.results.isLoading = true;
       
       const overallStartTime = performance.now();
       
       try {
-        // Search legacy storage first for immediate results
-        console.log('[StorageStore] Starting legacy search...');
-        const legacyPromise = legacySearchActions.search(query, options);
-        
-        // Search cold storage in parallel if available
+        // Search cold storage only
         console.log('[StorageStore] Starting cold storage search...', { isAvailable: storageState.coldStorage.isAvailable });
-        const coldPromise = storageState.coldStorage.isAvailable 
-          ? coldStorageActions.search(query, options)
-          : Promise.resolve([]);
+        if (storageState.coldStorage.isAvailable) {
+          await coldStorageActions.search(query, options);
+        }
         
-        // Wait for both searches to complete
-        await Promise.allSettled([legacyPromise, coldPromise]);
+        // Mark legacy as complete (no legacy search anymore)
+        storageState.search.results.isLegacyComplete = true;
         
-        // Ensure cold storage is marked complete even if search failed
+        // Ensure cold storage is marked complete
         if (!storageState.search.results.isColdComplete) {
           storageState.search.results.isColdComplete = true;
         }
         
-        // Ensure legacy search is marked complete
-        if (!storageState.search.results.isLegacyComplete) {
-          storageState.search.results.isLegacyComplete = true;
+        // Add query to search history
+        if (query && !storageState.search.history.includes(query)) {
+          storageState.search.history.unshift(query);
+          storageState.search.history = storageState.search.history.slice(0, 20); // Keep last 20
         }
         
         const overallEndTime = performance.now();
         storageState.search.performance.totalSearchTime = Math.round(overallEndTime - overallStartTime);
-        console.log('[StorageStore] Unified search completed:', {
+        console.log('[StorageStore] Cold storage search completed:', {
           totalTime: storageState.search.performance.totalSearchTime,
-          legacyResults: storageState.search.results.legacy.length,
           coldResults: storageState.search.results.cold.length
         });
         
       } catch (error) {
-        console.error('[StorageStore] Unified search failed:', error);
+        console.error('[StorageStore] Cold storage search failed:', error);
         throw error;
       } finally {
         storageState.search.results.isLoading = false;
@@ -647,7 +605,6 @@ export const useStorageStore = () => {
     isSearchComplete,
     
     // Actions
-    legacy: legacySearchActions,
     coldStorage: coldStorageActions,
     search: searchActions,
     auth: authActions,

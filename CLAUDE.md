@@ -1,10 +1,10 @@
-# Medical Rota Management System - AI Development Guide
+# PDF Document Processing & Search System - AI Development Guide
 
 ## AI Assistant Expertise & Context
 You are an expert in:
 - **Web Development**: CSS, JavaScript, Vue.js, Tailwind, Markdown
-- **PDF Processing Applications**: Understanding of pdf processing
-- **Project Type**: High volume PDF processing and searching
+- **PDF Processing Applications**: PDF.js, document parsing, text extraction
+- **Project Type**: Legal document processing and search for UK Planning Appeals
 
 ## AI Behavioral Guidelines
 
@@ -18,6 +18,7 @@ You are an expert in:
 - **Read Documentation**: Understand all `.md` files before executing commands
 - **Incremental Changes**: Break work into discrete changes with small tests at each stage
 - **File Updates**: Update documentation files as needed for future effectiveness
+- **MCP Tool Usage**: Proactively use MCP servers (sequential-thinking, context7, duckduckgo-search, etc.) when they add value to development tasks
 
 ### Development Process
 1. **Code Review**: Perform comprehensive review between `<CODE_REVIEW>` tags
@@ -144,9 +145,9 @@ This project is a web based application to allow users to upload and search the 
 
 #### Frontend Framework
 - **Vue 3**: Modern JavaScript framework with Composition API
-- **Vuetify 3**: Material Design component library
-- **Vue Router 4**: Client-side routing with protection guards
-- **Vuex 4**: Centralized state management
+- **Tailwind CSS**: Utility-first CSS framework for modern styling
+- **Vue Router 4**: Client-side routing for single-page application
+- **Dexie.js**: IndexedDB wrapper for local document storage
 
 #### Build Tools & Development
 - **Vite**: Fast build tool and development server
@@ -154,22 +155,315 @@ This project is a web based application to allow users to upload and search the 
 - **npm**: Package manager
 - **Prettier**: Code formatting
 
-#### Styling & Design
-- **CSS Custom Properties**: Modern CSS variables for theming
-- **Material Design Icons**: Comprehensive icon system
-- **Responsive Design**: Mobile-first approach
-- **Dark Mode**: System preference based theming
+#### Document Processing & Search
+- **PDF.js**: Client-side PDF parsing and text extraction
+- **Fuzzysort**: High-performance fuzzy search library
+- **Web Workers**: Background PDF processing for better performance
+- **IndexedDB**: Browser-based document storage and indexing
+
+### 🔧 MCP (Model Context Protocol) Servers
+
+**AIDEV-NOTE**: MCP servers provide extended capabilities beyond basic file operations. USE THESE TOOLS PROACTIVELY when they provide value for development tasks.
+
+#### Available MCP Servers Overview
+
+| Server | Primary Purpose | Key Strengths | Critical Requirements |
+|--------|----------------|---------------|----------------------|
+| **Context7** | Library documentation lookup | Up-to-date API docs, usage patterns | **MANDATORY 2-step process** |
+| **Sequential Thinking** | Complex problem-solving | Revision, branching, hypothesis validation | Structured thinking approach |
+| **IDE Server** | Code analysis & execution | VS Code diagnostics, persistent Jupyter kernel | Context awareness |
+| **Puppeteer Browser** | Browser automation | Full browser control, visual verification | Security considerations |
+| **Memory Bank** | Knowledge management | Cross-project insights, organized storage | Project-based organization |
+| **DuckDuckGo Search** | Web research | Privacy-focused, current information | Rate limits, result quotas |
+
+---
+
+#### 🔍 Context7 Library Documentation Server
+
+**Critical Workflow**: Context7 requires a **mandatory two-step process** - you MUST resolve the library ID before getting documentation.
+
+**Available Tools:**
+- `mcp__context7__resolve-library-id` - Convert library name to Context7-compatible ID
+- `mcp__context7__get-library-docs` - Fetch documentation using exact library ID
+
+**Required Workflow:**
+```bash
+# ✅ CORRECT: Two-step process
+1. mcp__context7__resolve-library-id("vue")
+   # Returns: "/vue/vue/v3.4.0" or similar
+2. mcp__context7__get-library-docs("/vue/vue/v3.4.0")
+
+# ❌ WRONG: Cannot skip step 1
+# mcp__context7__get-library-docs("vue") # This will fail
+```
+
+**Key Parameters:**
+- `tokens`: Max documentation tokens (default: 10000, higher = more context)
+- `topic`: Focus on specific areas (e.g., 'hooks', 'routing')
+- `context7CompatibleLibraryID`: Must be exact format from resolve-library-id
+
+**When to Use:**
+- Need authoritative API documentation
+- Looking for specific library usage patterns
+- Want current/up-to-date library information
+
+**Common Pitfalls:**
+- Skipping resolve-library-id step (will fail)
+- Using approximate library names instead of exact IDs
+- Not specifying topic for large libraries (gets generic overview)
+
+---
+
+#### 🧠 Sequential Thinking Problem-Solving Server
+
+**Advanced Capabilities**: This is a sophisticated reasoning tool with revision, branching, and hypothesis validation features.
+
+**Available Tool:**
+- `mcp__sequential-thinking__sequentialthinking` - Structured problem-solving with dynamic adaptation
+
+**Key Features:**
+- **Thought Revision**: Can reconsider and modify previous reasoning steps
+- **Branching**: Explore alternative approaches from any point
+- **Hypothesis Generation**: Create and test solution hypotheses
+- **Dynamic Planning**: Adjust total thoughts needed as understanding evolves
+- **Context Filtering**: Ignore irrelevant information automatically
+
+**Advanced Parameters:**
+- `isRevision`: Mark thoughts that revise previous thinking
+- `revisesThought`: Which thought number is being reconsidered
+- `branchFromThought`: Create alternative reasoning paths
+- `branchId`: Track different reasoning branches
+- `needsMoreThoughts`: Extend analysis beyond initial estimate
+
+**When to Use:**
+- Complex architectural decisions
+- Multi-step debugging processes
+- Planning large feature implementations
+- Analyzing requirements with unknown scope
+- Problem-solving that may require course correction
+
+**Example Pattern:**
+```bash
+# Start with initial analysis
+mcp__sequential-thinking__sequentialthinking("Analyze PDF processing performance issues")
+# Tool may revise earlier thoughts, branch into alternatives,
+# generate hypotheses, and validate solutions iteratively
+```
+
+---
+
+#### 💻 IDE Integration Server
+
+**Persistent Execution**: Code executed in Jupyter kernel persists across calls unless kernel is restarted.
+
+**Available Tools:**
+- `mcp__ide__getDiagnostics` - Get VS Code language diagnostics
+- `mcp__ide__executeCode` - Execute Python code in persistent Jupyter kernel
+
+**Key Features:**
+- **Persistent State**: Variables and imports remain available across executeCode calls
+- **Flexible Diagnostics**: Can get diagnostics for specific files or all files
+- **Integration**: Works with current VS Code workspace
+
+**Parameters:**
+- `getDiagnostics(uri)`: Optional file URI, omit for all files
+- `executeCode(code)`: Python code string
+
+**When to Use:**
+- Type checking and error analysis
+- Testing code snippets before implementation
+- Data analysis and exploration
+- Validating algorithms with sample data
+
+**Important Notes:**
+- **State Persistence**: Be aware that variables persist between calls
+- **Scope**: Avoid modifying global state unless explicitly needed
+- **Cleanup**: Consider kernel restart for fresh state if needed
+
+---
+
+#### 🌐 Puppeteer Browser Automation Server
+
+**Security Considerations**: Has dangerous launch options that can reduce browser security.
+
+**Available Tools:**
+- `mcp__puppeteer__puppeteer_navigate` - Navigate to URL
+- `mcp__puppeteer__puppeteer_screenshot` - Capture page/element screenshots
+- `mcp__puppeteer__puppeteer_click` - Click elements
+- `mcp__puppeteer__puppeteer_fill` - Fill input fields
+- `mcp__puppeteer__puppeteer_select` - Select dropdown options
+- `mcp__puppeteer__puppeteer_hover` - Hover over elements
+- `mcp__puppeteer__puppeteer_evaluate` - Execute JavaScript
+
+**Security Parameters:**
+- `allowDangerous`: Boolean to allow dangerous launch options (default: false)
+- `launchOptions`: Puppeteer launch configuration (restarts browser if changed)
+
+**Screenshot Options:**
+- `encoded`: Return base64 data URI instead of binary (default: false)
+- `width/height`: Viewport dimensions (default: 800x600)
+- `selector`: Screenshot specific element instead of full page
+
+**When to Use:**
+- UI testing and visual verification
+- Automated testing of web interfaces
+- Capturing screenshots for documentation
+- Interactive web application testing
+
+**Security Guidelines:**
+- Keep `allowDangerous: false` unless absolutely necessary
+- Be cautious with `launchOptions` - changes restart the browser
+- Validate URLs before navigation
+- Consider implications of JavaScript execution
+
+---
+
+#### 📊 Memory Bank Knowledge Management Server
+
+**Project Organization**: Organizes knowledge by projects, with files nested within each project.
+
+**Available Tools:**
+- `mcp__allpepper-memory-bank__list_projects` - List all available projects
+- `mcp__allpepper-memory-bank__list_project_files` - List files within a project
+- `mcp__allpepper-memory-bank__memory_bank_read` - Read specific file content
+- `mcp__allpepper-memory-bank__memory_bank_write` - Create new file
+- `mcp__allpepper-memory-bank__memory_bank_update` - Update existing file
+
+**Organization Pattern:**
+```
+Memory Bank
+├── Project A
+│   ├── implementation-notes.md
+│   ├── architecture-decisions.md
+│   └── lessons-learned.md
+├── Project B
+│   ├── api-patterns.md
+│   └── performance-optimizations.md
+└── Cross-Project
+    ├── reusable-patterns.md
+    └── common-pitfalls.md
+```
+
+**When to Use:**
+- Store implementation insights for future reference
+- Document architectural decisions and rationale
+- Share patterns across projects
+- Build institutional knowledge
+- Record lessons learned from complex implementations
+
+**Best Practices:**
+- Use descriptive project names that group related work
+- Create focused files rather than massive documents
+- Include context and rationale, not just solutions
+- Update files as understanding evolves
+
+---
+
+#### 🔍 DuckDuckGo Search Server
+
+**Privacy-Focused Web Research** with result limits and filtering options.
+
+**Available Tool:**
+- `mcp__duckduckgo-search__duckduckgo_web_search` - Privacy-focused web search
+
+**Key Parameters:**
+- `query`: Search query (max 400 characters)
+- `count`: Number of results (1-20, default: 10)
+- `safeSearch`: Content filtering ("strict", "moderate", "off")
+
+**Limitations:**
+- Maximum 20 results per request
+- Query length limited to 400 characters
+- Subject to rate limiting
+- Results may vary by region
+
+**When to Use:**
+- Research current trends and best practices
+- Find recent documentation or tutorials
+- Investigate new libraries or frameworks
+- Get diverse perspectives on technical topics
+
+**When NOT to Use:**
+- For library-specific API documentation (use Context7)
+- For complex analysis (use Sequential Thinking)
+- When you need guaranteed fresh results (may have cached results)
+
+---
+
+#### 🔗 Integration Patterns
+
+**Research → Think → Implement → Test**
+```bash
+# 1. Research phase
+mcp__duckduckgo-search__duckduckgo_web_search("Vue 3 performance optimization 2024")
+mcp__context7__resolve-library-id("vue")
+mcp__context7__get-library-docs("/vue/vue/v3.4.0", topic="performance")
+
+# 2. Analysis phase
+mcp__sequential-thinking__sequentialthinking("Plan Vue performance optimization strategy")
+
+# 3. Implementation verification
+mcp__ide__getDiagnostics() # Check current issues
+mcp__ide__executeCode("# Test performance optimization approach")
+
+# 4. UI testing
+mcp__puppeteer__puppeteer_navigate("http://localhost:5173")
+mcp__puppeteer__puppeteer_screenshot("performance-test")
+
+# 5. Document insights
+mcp__memory-bank__memory_bank_write("vue-optimization", "performance-patterns.md", insights)
+```
+
+**Debug → Analyze → Store**
+```bash
+# Debug complex issue
+mcp__ide__getDiagnostics("src/problematic-file.js")
+mcp__sequential-thinking__sequentialthinking("Analyze root cause of performance issue")
+
+# Store solution
+mcp__memory-bank__memory_bank_write("debugging-patterns", "performance-debug-checklist.md", solution)
+```
+
+#### ⚠️ Common Pitfalls & Troubleshooting
+
+**Context7 Issues:**
+- ❌ **Error**: "Invalid library ID" → Always use resolve-library-id first
+- ❌ **Empty Results**: Library not in Context7 database → Try DuckDuckGo search instead
+- ❌ **Generic Results**: Large libraries without topic → Add specific topic parameter
+
+**Sequential Thinking Issues:**
+- ❌ **Shallow Analysis**: Not using revision/branching features → Allow for thought evolution
+- ❌ **Premature Conclusion**: Ending analysis too early → Set needsMoreThoughts when uncertain
+
+**IDE Server Issues:**
+- ❌ **State Conflicts**: Variables from previous executions → Consider fresh kernel restart
+- ❌ **No Diagnostics**: Wrong file URI → Check file paths and VS Code workspace
+
+**Puppeteer Issues:**
+- ❌ **Security Errors**: Dangerous launch options → Keep allowDangerous: false
+- ❌ **Browser Restart**: Changed launch options → Be aware of restart implications
+- ❌ **Element Not Found**: CSS selectors → Verify element exists before interaction
+
+**Memory Bank Issues:**
+- ❌ **File Not Found**: Wrong project/file names → Use list_projects and list_project_files first
+- ❌ **Overwriting Content**: Using write instead of update → Use update for existing files
+
+**Performance Considerations:**
+- **Sequential Thinking**: Can be slow for complex analysis - use for non-trivial problems only
+- **Puppeteer**: Browser operations are slower than other tools - batch operations when possible
+- **Context7**: Documentation fetching takes time - cache results when doing multiple related queries
+- **DuckDuckGo**: Subject to rate limits - space out queries if making multiple searches
 
 ### 📁 Key File Locations
 
 | Purpose | Location | Description |
 |---------|----------|-------------|
 | **Components** | `src/components/` | Reusable UI components |
-| **Views** | `src/views/dashboard/` | Page-level healthcare views |
-| **Services** | `src/services/` | API calls and business logic |
-| **Store** | `src/store/modules/` | Vuex state management |
-| **Types** | `src/types/` | Type definitions |
-| **Tests** | `tests/unit/` | Unit test files |
+| **Views** | `src/views/` | Page-level document search interface |
+| **Services** | `src/services/` | PDF processing and storage services |
+| **Workers** | `src/workers/` | Background PDF processing workers |
+| **Utils** | `src/utils/` | Document processing utilities |
+| **Tests** | `tests/` | Unit and integration test files |
 
 ---
 
@@ -363,12 +657,12 @@ src/
 ```
 
 **Key domain models**:
-- **Users**: Hospital staff with different roles (Admin, Manager, Staff)
-- **Locations**: Hospital sites and departments within sites
-- **Shifts**: Time slots that need to be filled (with types, requirements)
-- **Rotas**: Schedules linking users to shifts across time periods
-- **Shift Swaps**: Requests for staff to exchange allocated shifts
-- **User Types**: Role-based permissions and access levels
+- **Documents**: PDF files with metadata (filename, size, upload date, processing status)
+- **Search Index**: Full-text search indexes for document content
+- **Search Results**: Query results with relevance scoring and highlighting
+- **Search History**: Previously executed searches for user convenience
+- **Saved Searches**: Bookmarked queries for quick access
+- **Document Content**: Extracted text content from PDF processing
 
 ---
 
@@ -426,7 +720,32 @@ TBD
 - Write tests for all new components and services
 - Focus on business logic in services and stores
 - Test user interactions and edge cases
-- Maintain high coverage for critical healthcare workflows
+- Maintain high coverage for critical document processing workflows
+
+### Test Credentials and Data
+**IMPORTANT**: For testing encrypted document search functionality
+
+#### Development Authentication
+- **Test Password**: `TestPassword123!`
+- **Purpose**: Used for accessing encrypted test batch in development
+- **Location**: Encrypted test batch at `public/cold-storage/test-batch-001-encrypted.json`
+- **Contains**: 3 sample appeal decision documents with keywords: "character", "appeal", "planning", etc.
+
+#### Password Requirements
+The test password meets all authentication requirements:
+- ✅ 12+ characters long
+- ✅ Contains uppercase letter (T, P)
+- ✅ Contains lowercase letters (est, assword)
+- ✅ Contains numbers (123)
+- ✅ Contains special characters (!)
+
+#### Testing Encrypted Search
+1. **Setup**: Navigate to application and enter `TestPassword123!` when prompted
+2. **Authentication**: System will create challenge data and authenticate
+3. **Search Test**: Try searching for "appeal", "character", or "planning"
+4. **Expected Results**: Should return 1-3 documents from the encrypted test batch
+
+**Note**: This password is for development/testing only. Production deployments require users to set their own secure passwords.
 
 ### Test Coverage Requirements
 **CRITICAL**: Follow the systematic coverage methodology defined in `coverage.md`
@@ -465,11 +784,11 @@ npm run test:run        # Single test run
 
 ## 11. Security Considerations
 
-### Healthcare Data Protection
-- **Patient Privacy**: Ensure no patient data is logged or exposed
-- **Access Control**: Role-based permissions strictly enforced
-- **Session Management**: Secure authentication and session handling
-- **Data Validation**: All inputs validated server-side
+### Document Data Protection
+- **Document Privacy**: Ensure document content is processed locally and not transmitted
+- **Local Storage**: All processing happens client-side using IndexedDB
+- **No Server Dependencies**: Application runs entirely in browser
+- **Data Validation**: All document uploads validated and sanitized
 
 ### Development Security
 - No hardcoded credentials or secrets
@@ -511,20 +830,20 @@ Components are versioned independently. Semantic Versioning (SemVer: `MAJOR.MINO
 Need UI functionality?
 ├── Similar component exists? 
 │   ├── YES → Extend existing component with props/slots
-│   └── NO → Check if it's healthcare-specific
+│   └── NO → Check if it's document processing specific
 │       ├── YES → Create in components/ with AIDEV-NOTE
 │       └── NO → Create generic component
 └── Page-level functionality?
-    └── Create in views/dashboard/ following existing patterns
+    └── Create in views/ following existing patterns
 ```
 
 ### State Management: Local vs Store
 
 ```
 Data needed by multiple components?
-├── YES → Use Vuex store module
-│   ├── Healthcare data → store/modules/ (e.g., rotas.js, shifts.js)  
-│   └── UI state → store/modules/theme.js
+├── YES → Use local storage or IndexedDB
+│   ├── Document data → Dexie.js database (documents, searchIndex)
+│   └── UI state → Local component state or props
 └── NO → Local component state (ref/reactive)
     ├── Form data → Local state
     └── Temporary UI → Local state  
@@ -533,13 +852,35 @@ Data needed by multiple components?
 ### Service Layer Organization
 
 ```
-New API endpoint needed?
-├── Healthcare domain → Existing service file
-│   ├── Authentication → services/auth.js
-│   ├── Staff/Rotas → services/shifts.js  
-│   └── Hospitals → services/locations.js
+New service functionality needed?
+├── Document processing domain → Existing service file
+│   ├── PDF Processing → services/pdfProcessor.js
+│   ├── Search → services/searchService.js  
+│   └── Storage → services/storageService.js
 └── New domain → Create new service file
     └── Follow existing patterns with error handling
+```
+
+### MCP Tool Selection
+
+```
+Need additional capabilities?
+├── Research needed?
+│   ├── Library docs → mcp__context7__ tools
+│   ├── Current trends → mcp__duckduckgo-search__
+│   └── Complex analysis → mcp__sequential-thinking__
+├── Code quality checks?
+│   ├── Type errors → mcp__ide__getDiagnostics
+│   ├── Code execution → mcp__ide__executeCode
+│   └── Testing snippets → mcp__ide__executeCode
+├── UI/Browser testing?
+│   ├── Screenshots → mcp__puppeteer__screenshot
+│   ├── Interactions → mcp__puppeteer__click/fill
+│   └── JavaScript → mcp__puppeteer__evaluate
+└── Knowledge management?
+    ├── Store insights → mcp__memory-bank__write
+    ├── Retrieve patterns → mcp__memory-bank__read
+    └── Cross-project → mcp__memory-bank__list_projects
 ```
 
 ---
@@ -547,9 +888,13 @@ New API endpoint needed?
 ## 16. Domain-Specific Terminology
 
 *   **AIDEV-NOTE/TODO/QUESTION**: Specially formatted comments to provide inline context or tasks for AI assistants and developers.
-*   **Rota Management**: Core business domain for healthcare staff scheduling
-*   **Shift Patterns**: Recurring schedule templates used across healthcare settings
-*   **Compliance Tracking**: Monitoring adherence to healthcare working time regulations
+*   **Document Processing**: Core business domain for PDF parsing and content extraction
+*   **Search Index**: Full-text search capabilities for document content
+*   **Fuzzy Search**: Approximate string matching for flexible document queries
+*   **MCP (Model Context Protocol)**: Extended AI capabilities through server plugins for research, code analysis, browser automation, and knowledge management
+*   **Context7**: Library documentation service for API reference and usage patterns
+*   **Sequential Thinking**: Structured problem-solving approach for complex technical challenges
+*   **Memory Bank**: Cross-project knowledge storage for implementation insights and patterns
 
 ---
 

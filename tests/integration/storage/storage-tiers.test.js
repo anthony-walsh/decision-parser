@@ -1,17 +1,18 @@
 /**
  * Storage Tiers Integration Tests
  * 
- * Testing the interaction between hot storage (SQLite) and cold storage (encrypted batches)
- * AIDEV-NOTE: Critical integration testing for hybrid storage architecture
+ * AIDEV-NOTE: Test file disabled during Dexie.js migration - hybrid storage architecture removed
+ * TODO: Create new cold storage only integration tests
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { HotStorageService } from '../../../src/services/HotStorageService.js'
+// AIDEV-NOTE: Legacy imports disabled - services no longer exist after migration
+// import { HotStorageService } from '../../../src/services/HotStorageService.js'
 import { ColdStorageService } from '../../../src/services/ColdStorageService.js'
-import { DocumentTierManager } from '../../../src/services/DocumentTierManager.js'
+// import { DocumentTierManager } from '../../../src/services/DocumentTierManager.js'
 import { EncryptionService } from '../../../src/services/EncryptionService.js'
 
-describe('Storage Tiers Integration', () => {
+describe.skip('Storage Tiers Integration - DISABLED DURING MIGRATION', () => {
   let hotStorage
   let coldStorage
   let tierManager

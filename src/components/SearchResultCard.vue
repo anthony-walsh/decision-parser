@@ -1,61 +1,55 @@
 <template>
   <!-- AIDEV-NOTE: Reusable search result card component with tier indicators -->
   <div class="bg-gray-800 border border-gray-700 rounded-xl p-4 hover:shadow-2xl hover:shadow-blue-900/20 transition-all duration-200 shadow-lg hover:border-gray-600 hover:-translate-y-1 relative">
-    <!-- Storage Tier Badge -->
-    <div class="absolute top-3 right-3">
-      <span 
-        :class="[
-          'px-2 py-1 text-xs font-medium rounded-full border',
-          storageTierBadge.class
-        ]"
-        :title="storageTierBadge.tooltip"
-      >
-        {{ storageTierBadge.label }}
-      </span>
-    </div>
-
     <!-- Document Header -->
     <div class="text-center mb-3">
-      <div class="w-12 h-12 mx-auto mb-2 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center">
-        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-        </svg>
-      </div>
       <h3 class="text-sm font-semibold text-gray-200 mb-1">
         {{ displayFilename }}
       </h3>
-      <div class="text-xs text-gray-400">
-        <div>{{ formatFileSize(result.document.size) }}</div>
-      </div>
     </div>
 
-    <!-- Appeal Metadata Display -->
-    <div class="bg-blue-900/20 p-2 rounded-lg mb-3 text-xs border border-blue-800/30">
-      <h4 class="font-semibold text-blue-300 mb-1">Appeal Details</h4>
-      <div class="grid grid-cols-1 gap-0.5 text-blue-200">
-        <div>
-          <span class="font-medium">Appeal Ref: </span> 
-          <span :class="metadata.appealReferenceNumber === 'NOT_FOUND' ? 'text-gray-500' : ''">
-            {{ metadata.appealReferenceNumber || 'NOT_FOUND' }}
-          </span>
+    <!-- Comprehensive Metadata Display -->
+    <div class="space-y-3 mb-3">
+      <!-- Case Information -->
+      <div class="bg-blue-900/20 p-3 rounded-lg text-xs border border-blue-800/30">
+        <h4 class="font-semibold text-blue-300 mb-2">Case Information</h4>
+        <div class="grid grid-cols-1 gap-1 text-blue-200">
+          <div><span class="font-medium">Case Type:</span> {{ getMetadataValue('case_type') }}</div>
+          <div><span class="font-medium">Case ID:</span> {{ getMetadataValue('case_id') }}</div>
+          <div><span class="font-medium">LPA Name:</span> {{ getMetadataValue('lpa_name') }}</div>
+          <div><span class="font-medium">Case Officer:</span> {{ getMetadataValue('case_officer') }}</div>
+          <div><span class="font-medium">Procedure:</span> {{ getMetadataValue('procedure') }}</div>
+          <div><span class="font-medium">Status:</span> {{ getMetadataValue('status') }}</div>
         </div>
-        <div>
-          <span class="font-medium">LPA: </span> 
-          <span :class="metadata.lpa === 'NOT_FOUND' ? 'text-gray-500' : ''">
-            {{ metadata.lpa || 'NOT_FOUND' }}
-          </span>
+      </div>
+
+      <!-- Important Dates -->
+      <div class="bg-green-900/20 p-3 rounded-lg text-xs border border-green-800/30">
+        <h4 class="font-semibold text-green-300 mb-2">Important Dates</h4>
+        <div class="grid grid-cols-1 gap-1 text-green-200">
+          <div><span class="font-medium">Start Date:</span> {{ getMetadataValue('start_date') }}</div>
+          <div><span class="font-medium">Questionnaire Due:</span> {{ getMetadataValue('questionnaire_due') }}</div>
+          <div><span class="font-medium">Statement Due:</span> {{ getMetadataValue('statement_due') }}</div>
+          <div><span class="font-medium">Interested Party Comments Due:</span> {{ getMetadataValue('interested_party_comments_due') }}</div>
+          <div><span class="font-medium">Final Comments Due:</span> {{ getMetadataValue('final_comments_due') }}</div>
+          <div><span class="font-medium">Inquiry Evidence Due:</span> {{ getMetadataValue('inquiry_evidence_due') }}</div>
+          <div><span class="font-medium">Event Date:</span> {{ getMetadataValue('event_date') }}</div>
         </div>
-        <div>
-          <span class="font-medium">Decision: </span> 
-          <span :class="metadata.decisionOutcome === 'NOT_FOUND' ? 'text-gray-500' : getDecisionColor(metadata.decisionOutcome)">
-            {{ metadata.decisionOutcome || 'NOT_FOUND' }}
-          </span>
-        </div>
-        <div>
-          <span class="font-medium">Decision Date: </span> 
-          <span :class="metadata.decisionDate === 'NOT_FOUND' ? 'text-gray-500' : ''">
-            {{ metadata.decisionDate || 'NOT_FOUND' }}
-          </span>
+      </div>
+
+      <!-- Decision Information -->
+      <div class="bg-purple-900/20 p-3 rounded-lg text-xs border border-purple-800/30">
+        <h4 class="font-semibold text-purple-300 mb-2">Decision Information</h4>
+        <div class="grid grid-cols-1 gap-1 text-purple-200">
+          <div>
+            <span class="font-medium">Decision Outcome:</span> 
+            <span :class="getDecisionColor(getMetadataValue('decision_outcome'))">
+              {{ getMetadataValue('decision_outcome') }}
+            </span>
+          </div>
+          <div><span class="font-medium">Decision Date:</span> {{ getMetadataValue('decision_date') }}</div>
+          <div><span class="font-medium">Link Status:</span> {{ getMetadataValue('link_status') }}</div>
+          <div><span class="font-medium">Linked Case Count:</span> {{ getMetadataValue('linked_case_count') }}</div>
         </div>
       </div>
     </div>
@@ -98,7 +92,7 @@
         class="px-3 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg text-xs hover:from-blue-600 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium shadow-md hover:shadow-lg"
         :aria-label="`View document ${result.document.filename}`"
       >
-        View Document
+        View Online
       </button>
       <button
         @click="$emit('hide-document', result.document.id)"
@@ -121,7 +115,6 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { useStorageStore } from '@/stores';
 import type { SearchResult } from '@/types';
 
 // Component props
@@ -143,8 +136,6 @@ defineEmits<{
   'hide-document': [documentId: string];
 }>();
 
-// Store
-const store = useStorageStore();
 
 // Component state
 const isExpanded = ref(false);
@@ -155,12 +146,7 @@ const displayFilename = computed(() => {
 });
 
 const metadata = computed(() => {
-  return props.result.document.metadata || {
-    appealReferenceNumber: 'NOT_FOUND',
-    lpa: 'NOT_FOUND', 
-    decisionOutcome: 'NOT_FOUND',
-    decisionDate: 'NOT_FOUND'
-  };
+  return props.result.document.metadata || {};
 });
 
 const visibleMatches = computed(() => {
@@ -171,49 +157,14 @@ const expandedMatches = computed(() => {
   return props.result.matches.slice(props.maxVisibleMatches);
 });
 
-// AIDEV-NOTE: Storage tier badge logic - determines hot vs cold storage
-const storageTierBadge = computed(() => {
-  // Check if this result came from hot storage (recent documents)
-  const isHotStorage = store.state.search.results.hot.some(hotResult => 
-    hotResult.document.id === props.result.document.id
-  );
-  
-  if (isHotStorage) {
-    return {
-      label: 'Recent',
-      class: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-      tooltip: 'This document is in hot storage (recently uploaded or accessed)'
-    };
-  } else {
-    // Check if it's from cold storage
-    const isColdStorage = store.state.search.results.cold.some(coldResult => 
-      coldResult.id === props.result.document.id
-    );
-    
-    if (isColdStorage) {
-      return {
-        label: 'Archive',
-        class: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-        tooltip: 'This document is in cold storage (archived for space optimization)'
-      };
-    } else {
-      // Fallback for unknown tier
-      return {
-        label: 'Unknown',
-        class: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
-        tooltip: 'Storage tier could not be determined'
-      };
-    }
-  }
-});
 
 // Helper functions
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+function getMetadataValue(field: string): string {
+  const value = (metadata.value as any)?.[field];
+  if (value === undefined || value === null || value === '' || value === 'NOT_FOUND') {
+    return 'NOT_FOUND';
+  }
+  return String(value);
 }
 
 function getDecisionColor(decision: string | undefined): string {
@@ -231,7 +182,7 @@ function highlightMatches(text: string, query: string): string {
   
   words.forEach(word => {
     const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    highlightedText = highlightedText.replace(regex, '<span class="bg-yellow-500/30 text-yellow-200 px-1 rounded font-medium">$1</span>');
+    highlightedText = highlightedText.replace(regex, '<span class="bg-blue-500/40 text-blue-100 px-1 rounded font-medium">$1</span>');
   });
   
   return highlightedText;

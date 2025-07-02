@@ -1,0 +1,11 @@
+
+> decision-parser@1.0.0 dev
+> vite
+
+Port 5173 is in use, trying another one...
+
+  VITE v7.0.0  ready in 546 ms
+
+  ➜  Local:   http://localhost:5174/decision-parser/
+  ➜  Network: http://10.255.255.254:5174/decision-parser/
+  ➜  Network: http://172.22.20.123:5174/decision-parser/

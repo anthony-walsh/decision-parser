@@ -8,7 +8,7 @@
  */
 
 import { AuthenticationService } from './AuthenticationService.js';
-import { db as legacyDb } from '@/stores/database.ts';
+// AIDEV-NOTE: Removed legacy Dexie database import - migration completed
 
 // Feature flags for gradual migration
 // AIDEV-NOTE: Simplified feature flags - removed hot storage complexity
@@ -43,8 +43,7 @@ class ServiceProvider {
     console.log('[ServiceProvider] Initializing services...');
 
     try {
-      // Always initialize legacy database first
-      await this.initializeLegacyDatabase();
+      // AIDEV-NOTE: Legacy database initialization removed - cold storage only
 
       // AIDEV-NOTE: Simplified service initialization - removed hot storage
       console.log('[ServiceProvider] Initializing services with feature flags:', FEATURE_FLAGS);
@@ -74,20 +73,7 @@ class ServiceProvider {
     }
   }
 
-  /**
-   * Initialize legacy Dexie database (always enabled)
-   */
-  async initializeLegacyDatabase() {
-    try {
-      // Ensure database is ready
-      await legacyDb.open();
-      this.services.set('legacyDb', legacyDb);
-      console.log('[ServiceProvider] Legacy database initialized');
-    } catch (error) {
-      console.error('[ServiceProvider] Legacy database initialization failed:', error);
-      throw error;
-    }
-  }
+  // AIDEV-NOTE: Legacy database initialization removed - migration to cold storage completed
 
   /**
    * Initialize authentication service
@@ -244,10 +230,7 @@ class ServiceProvider {
           const coldStorage = this.getService('coldStorage');
           return await coldStorage.addDocument(document);
         } else {
-          console.log('[ServiceProvider][StorageAdapter] Falling back to legacy storage for document add');
-          // Fall back to legacy storage
-          const legacyDb = this.getService('legacyDb');
-          return await legacyDb.addDocument(document);
+          throw new Error('Cold storage not available. Document addition requires cold storage.');
         }
       },
 
@@ -259,10 +242,8 @@ class ServiceProvider {
           const coldStorage = this.getService('coldStorage');
           return await coldStorage.getAllDocuments();
         } else {
-          console.log('[ServiceProvider][StorageAdapter] Falling back to legacy storage for getAllDocuments');
-          // Fall back to legacy storage
-          const legacyDb = this.getService('legacyDb');
-          return await legacyDb.getAllDocuments();
+          console.log('[ServiceProvider][StorageAdapter] Cold storage not available, returning empty array');
+          return [];
         }
       },
 
@@ -270,12 +251,7 @@ class ServiceProvider {
         console.log('[ServiceProvider][StorageAdapter] Searching documents for query:', query);
         const results = [];
 
-        // Search legacy storage (always available)
-        console.log('[ServiceProvider][StorageAdapter] Searching legacy storage...');
-        const legacyDb = this.getService('legacyDb');
-        const legacyResults = await this.performLegacySearch(query, options);
-        console.log('[ServiceProvider][StorageAdapter] Legacy search returned:', legacyResults.length, 'results');
-        results.push(...legacyResults);
+        // AIDEV-NOTE: Legacy search removed - cold storage only architecture
 
         // Search cold storage if available and authenticated
         if (this.hasService('coldStorage') && FEATURE_FLAGS.useNewColdStorage) {
@@ -299,10 +275,7 @@ class ServiceProvider {
       async deleteDocument(docId) {
         console.log('[ServiceProvider][StorageAdapter] Deleting document:', docId);
         
-        // Delete from legacy storage
-        console.log('[ServiceProvider][StorageAdapter] Deleting from legacy storage...');
-        const legacyDb = this.getService('legacyDb');
-        await legacyDb.deleteDocument(docId);
+        // AIDEV-NOTE: Legacy storage deletion removed - cold storage only
 
         // Delete from cold storage if available
         if (this.hasService('coldStorage') && FEATURE_FLAGS.useNewColdStorage) {
@@ -321,10 +294,7 @@ class ServiceProvider {
       async clearAllData() {
         console.log('[ServiceProvider][StorageAdapter] Clearing all data from all storages...');
         
-        // Clear legacy storage
-        console.log('[ServiceProvider][StorageAdapter] Clearing legacy storage...');
-        const legacyDb = this.getService('legacyDb');
-        await legacyDb.clearAllData();
+        // AIDEV-NOTE: Legacy storage clearing removed - cold storage only
 
         // Clear cold storage if available
         if (this.hasService('coldStorage') && FEATURE_FLAGS.useNewColdStorage) {
@@ -342,23 +312,7 @@ class ServiceProvider {
     };
   }
 
-  /**
-   * Perform legacy search using existing search engine
-   */
-  async performLegacySearch(query, options = {}) {
-    try {
-      // Use existing search engine from window if available
-      if (window.searchEngine && typeof window.searchEngine.performSearch === 'function') {
-        return await window.searchEngine.performSearch(query, options);
-      } else {
-        console.warn('[ServiceProvider] Legacy search engine not available');
-        return [];
-      }
-    } catch (error) {
-      console.error('[ServiceProvider] Legacy search failed:', error);
-      return [];
-    }
-  }
+  // AIDEV-NOTE: Legacy search method removed - migration to cold storage completed
 
   /**
    * Get comprehensive status of all systems
@@ -368,15 +322,10 @@ class ServiceProvider {
       initialized: this.isInitialized,
       migration: this.getMigrationState(),
       services: {
-        legacy: {
-          database: this.hasService('legacyDb'),
-          searchEngine: typeof window.searchEngine !== 'undefined'
-        },
-        new: {
-          authentication: this.hasService('authentication'),
-          coldStorage: this.hasService('coldStorage'),
-          workers: this.hasService('workers')
-        }
+        // AIDEV-NOTE: Legacy services removed - cold storage only architecture
+        coldStorage: this.hasService('coldStorage'),
+        authentication: this.hasService('authentication'),
+        workers: this.hasService('workers')
       }
     };
   }

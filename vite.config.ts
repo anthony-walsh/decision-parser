@@ -23,7 +23,8 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['vue', 'vue-router', 'dexie', 'fuzzysort'],
+    include: ['vue', 'vue-router', 'fuzzysort'],
+    // AIDEV-NOTE: Exclude large dependencies that are loaded dynamically
     exclude: ['pdfjs-dist', 'sql.js', 'absurd-sql']
   },
   server: {
@@ -62,8 +63,8 @@ export default defineConfig({
             return 'vue-router';
           }
           
-          // Search and database utilities
-          if (id.includes('fuzzysort') || id.includes('dexie')) {
+          // Search utilities  
+          if (id.includes('fuzzysort')) {
             return 'search-utils';
           }
           
@@ -148,16 +149,24 @@ export default defineConfig({
     }
   },
   define: {
+    // AIDEV-NOTE: PDF.js worker for current implementation
     'import.meta.env.PDFJS_WORKER_SRC': JSON.stringify('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs'),
-    // Define SQL.js WASM location with proper base path handling
+    
+    // AIDEV-NOTE: Future SQLite WASM configuration (when migration is complete)
     'import.meta.env.SQLJS_WASM_URL': JSON.stringify('/decision-parser/sql-wasm/sql-wasm.wasm'),
-    // Define cold storage base path
     'import.meta.env.COLD_STORAGE_BASE': JSON.stringify('/decision-parser/cold-storage/'),
-    // Performance configuration
+    
+    // AIDEV-NOTE: Performance configuration for new architecture
     'import.meta.env.MEMORY_WARNING_THRESHOLD': JSON.stringify(200 * 1024 * 1024), // 200MB
     'import.meta.env.MEMORY_CRITICAL_THRESHOLD': JSON.stringify(300 * 1024 * 1024), // 300MB
     'import.meta.env.HOT_STORAGE_LIMIT': JSON.stringify(5000), // 5000 documents
-    'import.meta.env.COLD_BATCH_CACHE_SIZE': JSON.stringify(100 * 1024 * 1024) // 100MB
+    'import.meta.env.COLD_BATCH_CACHE_SIZE': JSON.stringify(100 * 1024 * 1024), // 100MB
+    
+    // AIDEV-NOTE: Migration feature flags (can be enabled gradually)
+    'import.meta.env.ENABLE_NEW_AUTHENTICATION': JSON.stringify(false),
+    'import.meta.env.ENABLE_NEW_HOT_STORAGE': JSON.stringify(false),
+    'import.meta.env.ENABLE_NEW_COLD_STORAGE': JSON.stringify(true),
+    'import.meta.env.ENABLE_WORKERS': JSON.stringify(false)
   },
   // Preview server configuration for testing builds
   preview: {

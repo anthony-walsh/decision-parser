@@ -43,21 +43,18 @@
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex justify-center gap-4">
+        <div class="flex justify-center gap-4 flex-wrap">
           <button 
-            @click="showUploadModal = true"
-            class="px-6 py-2 bg-gray-700 text-white rounded-lg shadow-lg hover:bg-gray-600 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-gray-500/50 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all border border-gray-600 font-medium"
-            aria-label="Upload PDF documents"
+            @click="showImportModal = true"
+            :disabled="isImporting"
+            class="px-6 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg shadow-lg hover:from-cyan-700 hover:to-blue-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Import appeal decision letters from UK Planning Appeals database"
           >
-            Upload PDFs
-          </button>
-          <button 
-            @click="clearAllPDFs"
-            :disabled="documentCount === 0"
-            class="px-6 py-2 bg-red-600 text-white rounded-lg shadow-lg hover:bg-red-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Clear all PDF documents"
-          >
-            Clear PDFs
+            <svg v-if="isImporting" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Import Appeal Cases
           </button>
         </div>
       </div>
@@ -88,6 +85,7 @@
           </div>
         </div>
       </div>
+
 
       <!-- Date Filter Controls -->
       <div class="bg-gray-800 rounded-xl shadow-lg border border-gray-700 p-4">
@@ -316,26 +314,8 @@
 
     <!-- Results Section -->
     <div class="max-w-7xl mx-auto px-6 py-3">
-      <!-- Search Engine Error -->
-      <div v-if="searchEngineStatus?.error" class="text-center py-8">
-        <div class="text-red-400 mb-3">
-          <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-          </svg>
-        </div>
-        <p class="text-lg text-red-400 mb-3">Search Engine Error</p>
-        <p class="text-gray-400 mb-3">{{ searchEngineStatus.error }}</p>
-        <button 
-          @click="retryInitialization" 
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-gray-900 transition-colors shadow-lg hover:shadow-xl"
-          aria-label="Retry search engine initialization"
-        >
-          Retry Initialization
-        </button>
-      </div>
-
       <!-- Search Error -->
-      <div v-else-if="searchError" class="text-center py-8">
+      <div v-if="searchError" class="text-center py-8">
         <div class="text-red-400 mb-3">
           <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -369,15 +349,15 @@
           
           <!-- Progressive loading indicators -->
           <div class="max-w-lg mx-auto space-y-2">
-            <!-- Hot storage search status -->
+            <!-- Legacy storage search status -->
             <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
               <div class="flex items-center space-x-2">
                 <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <span class="text-sm text-gray-300">Hot Storage (Recent)</span>
+                <span class="text-sm text-gray-300">Legacy Storage (Local)</span>
               </div>
               <div class="flex items-center space-x-2">
-                <span v-if="store.state.search.results.isHotComplete" class="text-green-400 text-xs">
-                  ✓ {{ store.state.search.results.hot.length }} results
+                <span v-if="store.state.search.results.isLegacyComplete" class="text-green-400 text-xs">
+                  ✓ {{ store.state.search.results.legacy.length }} results
                 </span>
                 <span v-else class="text-blue-400 text-xs">Searching...</span>
               </div>
@@ -452,32 +432,184 @@
       </div>
     </div>
 
+    <!-- Search Debug Panel -->
+    <div v-if="showDebugPanel" class="max-w-7xl mx-auto px-6 py-4">
+      <SearchDebugPanel ref="debugPanel" />
+    </div>
+
     <!-- Document Stats Footer -->
     <div class="text-center py-4 border-t border-gray-700 bg-gray-800/50 mt-3">
       <div class="text-xs text-gray-400">
         <p v-if="documentCount > 0">
-          {{ documentCount }} documents indexed | {{ indexedCount }} searchable
+          {{ documentCount }} documents in cold storage | {{ indexedCount }} searchable
         </p>
         <p v-else class="text-gray-500">
-          No documents uploaded yet. Click "Upload PDFs" to get started.
+          No documents available. Use "Import Appeal Cases" to populate the archive.
         </p>
+      </div>
+      
+      <!-- Debug Panel Toggle -->
+      <button 
+        @click="toggleDebugPanel"
+        class="mt-2 px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded border border-gray-600 transition-colors"
+        title="Toggle Search Diagnostics"
+      >
+        {{ showDebugPanel ? 'Hide' : 'Show' }} Debug Panel
+      </button>
+    </div>
+
+    <!-- Authentication Required Modal -->
+    <div v-if="authenticationRequired" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-xl max-w-md w-full mx-4 shadow-2xl border border-gray-700">
+        <div class="p-6">
+          <div class="flex items-center mb-4">
+            <div class="w-12 h-12 bg-blue-900/20 rounded-full flex items-center justify-center mr-4">
+              <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white">Authentication Required</h3>
+          </div>
+          
+          <p class="text-gray-300 mb-4">
+            Cold storage contains encrypted documents that require authentication to access. 
+            You can either authenticate to access the full archive or continue with local document search only.
+          </p>
+          
+          <div class="bg-blue-900/20 border border-blue-800/30 rounded-lg p-3 mb-4">
+            <p class="text-blue-300 text-sm font-medium">Cold Storage Features:</p>
+            <ul class="text-blue-200 text-xs mt-1 space-y-1">
+              <li>• Encrypted document archive with thousands of planning appeal decisions</li>
+              <li>• Advanced search across large datasets</li>
+              <li>• Secure AES-256-GCM encryption</li>
+              <li>• Password-protected access</li>
+            </ul>
+          </div>
+          
+          <div class="flex justify-center">
+            <button
+              @click="authenticateForColdStorage"
+              class="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors font-medium"
+            >
+              Authenticate
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Upload Modal -->
-    <div v-if="showUploadModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-gray-800 rounded-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl border border-gray-700">
+
+    <!-- Import Appeal Cases Modal -->
+    <div v-if="showImportModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-700">
         <div class="p-6">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-2xl font-semibold text-white">Upload PDF Documents</h2>
-            <button @click="closeUploadModal" class="text-gray-400 hover:text-gray-200">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h2 class="text-2xl font-semibold text-white">Import Appeal Cases</h2>
+              <p class="text-gray-400 text-sm mt-1">Download and import UK Planning Appeal decision letters</p>
+            </div>
+            <button @click="closeImportModal" class="text-gray-400 hover:text-gray-200" :disabled="isImporting">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
             </button>
           </div>
 
-          <UploadComponent @upload-complete="handleUploadComplete" />
+          <!-- Import Configuration -->
+          <div v-if="!isImporting" class="space-y-6">
+            <!-- Import Settings -->
+            <div class="bg-gray-700/50 rounded-lg p-4">
+              <h3 class="text-lg font-medium text-white mb-3">Import Settings</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Batch Size</label>
+                  <select v-model="importSettings.batchSize" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <option value="50">50 cases (Testing)</option>
+                    <option value="100">100 cases (Small)</option>
+                    <option value="500">500 cases (Medium)</option>
+                    <option value="1000">1000 cases (Large)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-300 mb-2">Concurrency Limit</label>
+                  <select v-model="importSettings.concurrencyLimit" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    <option value="5">5 (Conservative)</option>
+                    <option value="10">10 (Balanced)</option>
+                    <option value="15">15 (Aggressive)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-end gap-3">
+              <button
+                @click="closeImportModal"
+                class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500/50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                @click="startImport"
+                class="px-6 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg hover:from-cyan-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-colors font-medium"
+              >
+                Start Import
+              </button>
+            </div>
+          </div>
+
+          <!-- Import Progress -->
+          <div v-else class="space-y-6">
+            <!-- Progress Header -->
+            <div class="text-center">
+              <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full mb-4">
+                <svg class="w-8 h-8 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+              <h3 class="text-xl font-semibold text-white">{{ importProgress.stage }}</h3>
+              <p class="text-gray-400 mt-1">{{ importProgress.message }}</p>
+            </div>
+
+            <!-- Progress Bar -->
+            <div v-if="importProgress.total > 0" class="w-full bg-gray-700 rounded-full h-3">
+              <div 
+                class="bg-gradient-to-r from-cyan-500 to-blue-600 h-3 rounded-full transition-all duration-300"
+                :style="{ width: `${(importProgress.processed / importProgress.total) * 100}%` }"
+              ></div>
+            </div>
+
+            <!-- Progress Stats -->
+            <div class="grid grid-cols-3 gap-4 text-center">
+              <div class="bg-gray-700/50 rounded-lg p-3">
+                <div class="text-2xl font-bold text-cyan-400">{{ importProgress.processed }}</div>
+                <div class="text-xs text-gray-400">Processed</div>
+              </div>
+              <div class="bg-gray-700/50 rounded-lg p-3">
+                <div class="text-2xl font-bold text-blue-400">{{ importProgress.total }}</div>
+                <div class="text-xs text-gray-400">Total</div>
+              </div>
+              <div class="bg-gray-700/50 rounded-lg p-3">
+                <div class="text-2xl font-bold text-red-400">{{ importProgress.errors.length }}</div>
+                <div class="text-xs text-gray-400">Errors</div>
+              </div>
+            </div>
+
+            <!-- Error Log -->
+            <div v-if="importProgress.errors.length > 0" class="bg-red-900/20 border border-red-800/30 rounded-lg p-4">
+              <h4 class="text-red-400 font-medium mb-2">Import Errors</h4>
+              <div class="max-h-32 overflow-y-auto space-y-1">
+                <div 
+                  v-for="(error, index) in importProgress.errors.slice(-5)" 
+                  :key="index"
+                  class="text-xs text-red-300 font-mono"
+                >
+                  {{ error }}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -490,12 +622,17 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { db } from '@/stores/database';
 import { useStorageStore } from '@/stores';
+import { searchHistoryService } from '@/utils/searchHistoryService';
 import type { SearchHistory, SavedSearch, DateFilter, SearchResult, SearchSummaryData } from '@/types';
-import UploadComponent from '@/components/UploadComponent.vue';
 import SearchResultCard from '@/components/SearchResultCard.vue';
 import PerformanceIndicator from '@/components/PerformanceIndicator.vue';
+import SearchDebugPanel from '@/components/SearchDebugPanel.vue';
+import { logger, logImport, logUI, startTimer } from '@/utils/logger';
+import { appealImportService } from '@/services/AppealImportService';
+import { authService } from '@/services/AuthenticationService.js';
+
+// AIDEV-NOTE: Replaced Dexie database import with localStorage-based search history service
 
 // AIDEV-NOTE: Use new Vue store for hot/cold storage management
 const store = useStorageStore();
@@ -511,7 +648,21 @@ const searchTime = ref(0);
 const searchError = ref<string | null>(null);
 
 // UI state
-const showUploadModal = ref(false);
+const showImportModal = ref(false);
+const isImporting = ref(false);
+const importProgress = ref<{
+  stage: string;
+  message: string;
+  processed: number;
+  total: number;
+  errors: string[];
+}>({
+  stage: '',
+  message: '',
+  processed: 0,
+  total: 0,
+  errors: []
+});
 const documentCount = ref(0);
 const indexedCount = ref(0);
 const recentSearches = ref<SearchHistory[]>([]);
@@ -528,12 +679,22 @@ const dateFilter = ref<DateFilter>({
   type: 'all'
 });
 
-// Search engine status
-const searchEngineStatus = ref<{
-  initialized: boolean;
-  error: string | null;
-  isInitializing: boolean;
-} | null>(null);
+// AIDEV-NOTE: Cold storage is the only storage mode
+
+// AIDEV-NOTE: Authentication state for cold storage access
+const authenticationRequired = ref(false);
+const isAuthenticated = ref(false);
+
+// Debug panel state
+const showDebugPanel = ref(false);
+const debugPanel = ref();
+
+// AIDEV-NOTE: Import settings for appeal cases downloader
+const importSettings = ref({
+  batchSize: 50, // Start with testing size
+  concurrencyLimit: 5 // Conservative concurrency
+});
+
 
 // AIDEV-NOTE: Computed property for threshold display label
 const thresholdLabel = computed(() => {
@@ -549,7 +710,7 @@ const thresholdLabel = computed(() => {
 const searchSummary = computed((): SearchSummaryData => {
   const visibleResults = filteredResults.value;
   const uniqueDocuments = new Set(visibleResults.map(r => r.document.id)).size;
-  const totalIndexedDocuments = window.searchEngine?.getIndexedDocumentCount?.() || 0;
+  const totalIndexedDocuments = 0; // Cold storage only, no legacy search engine
   
   // Decision breakdown
   const decisionCounts = { allowed: 0, dismissed: 0, unknown: 0 };
@@ -628,20 +789,53 @@ const searchSummary = computed((): SearchSummaryData => {
 });
 
 onMounted(async () => {
-  // AIDEV-NOTE: Initialize storage through Vue store
+  // AIDEV-NOTE: Check authentication state first
   try {
-    await store.hotStorage.initialize();
-    console.log('Hot storage initialized through store');
+    const authState = authService.getAuthState();
+    isAuthenticated.value = authState.isAuthenticated;
+    console.log('[UnifiedSearchView] Authentication state:', authState);
+    
+    // Update store authentication state
+    await store.auth.setAuthenticated(authState.isAuthenticated);
+    await store.auth.setInitialized(authState.isInitialized);
   } catch (error) {
-    console.error('Hot storage initialization failed:', error);
-    searchError.value = store.state.hotStorage.error || 'Hot storage initialization failed';
+    console.error('Failed to check authentication state:', error);
   }
   
-  // Initialize legacy search engine as fallback (gradually phase out)
-  updateSearchEngineStatus();
-  if (window.searchEngine) {
-    window.searchEngine.setThreshold(searchThreshold.value);
+  // AIDEV-NOTE: Initialize cold storage through Vue store (simplified architecture)
+  try {
+    await store.coldStorage.initialize();
+    console.log('Cold storage initialized through store');
+    
+    // Initialize appeal import service with cold storage
+    const { getColdStorageService } = await import('@/stores/index');
+    const coldStorageService = await getColdStorageService();
+    await appealImportService.initialize(coldStorageService);
+    logImport('Appeal import service initialized with cold storage', {
+      coldStorageAvailable: true
+    }, 'UnifiedSearchView');
+    
+  } catch (error) {
+    console.error('Cold storage initialization failed:', error);
+    searchError.value = store.state.coldStorage.error || 'Cold storage initialization failed';
+    
+    // Try to initialize appeal import service without cold storage
+    try {
+      await appealImportService.initialize(null);
+      logImport('Appeal import service initialized without cold storage (fallback mode)', {}, 'UnifiedSearchView');
+    } catch (importError) {
+      console.error('Appeal import service initialization failed:', importError);
+    }
   }
+  
+  // Cold storage is the only mode - check authentication requirement
+  if (!isAuthenticated.value) {
+    const shouldShowAuth = await checkColdStorageAuthRequirement();
+    if (shouldShowAuth) {
+      authenticationRequired.value = true;
+    }
+  }
+  
   
   // Set initial search threshold in store
   store.search.setThreshold(searchThreshold.value);
@@ -661,37 +855,23 @@ onMounted(async () => {
 
 async function loadStats() {
   try {
-    // AIDEV-NOTE: Load stats through store for better state management
-    await store.hotStorage.loadStats();
-    
-    // Also get legacy stats for backward compatibility during migration
-    const [legacyDocs, legacyIndices] = await Promise.all([
-      db.getAllDocuments(),
-      db.getAllSearchIndices()
-    ]);
-    
-    // Use hot storage stats if available, otherwise use legacy stats
-    documentCount.value = store.state.hotStorage.stats.documentCount || legacyDocs.length;
-    indexedCount.value = store.state.hotStorage.stats.indexedCount || legacyIndices.length;
+    // AIDEV-NOTE: Load stats from cold storage only
+    documentCount.value = store.state.coldStorage.stats.totalDocuments || 0;
+    indexedCount.value = store.state.coldStorage.stats.totalDocuments || 0; // All cold storage documents are searchable
   } catch (error) {
-    console.error('Failed to load stats:', error);
-    // Fallback to legacy stats only
-    const [docs, indices] = await Promise.all([
-      db.getAllDocuments(),
-      db.getAllSearchIndices()
-    ]);
-    documentCount.value = docs.length;
-    indexedCount.value = indices.length;
+    console.error('Failed to load cold storage stats:', error);
+    documentCount.value = 0;
+    indexedCount.value = 0;
   }
 }
 
 async function loadSearchHistory() {
-  await db.cleanupDuplicateSearchHistory();
-  recentSearches.value = await db.getSearchHistory();
+  await searchHistoryService.cleanupDuplicateSearchHistory();
+  recentSearches.value = await searchHistoryService.getSearchHistory();
 }
 
 async function loadSavedSearches() {
-  savedSearches.value = await db.getSavedSearches();
+  savedSearches.value = await searchHistoryService.getSavedSearches();
 }
 
 async function performSearch() {
@@ -707,10 +887,20 @@ async function performSearch() {
   hiddenDocuments.value.clear();
 
   try {
-    const startTime = performance.now();
-    
-    // AIDEV-NOTE: Use store for unified search across hot/cold storage
+    // AIDEV-NOTE: Use store for unified search across cold storage
     try {
+      // Check authentication for cold storage
+      if (!isAuthenticated.value) {
+        // Check if cold storage has encrypted data that requires authentication
+        const requiresAuth = await checkColdStorageAuthRequirement();
+        if (requiresAuth) {
+          console.log('[UnifiedSearchView] Cold storage search requires authentication');
+          authenticationRequired.value = true;
+          searchError.value = 'Authentication required for cold storage access. Please authenticate to continue.';
+          return;
+        }
+      }
+      
       // Update store with current search filters
       store.search.setDateFilter(dateFilter.value);
       store.search.setThreshold(searchThreshold.value);
@@ -726,19 +916,8 @@ async function performSearch() {
       
       console.log(`Store search returned ${results.value.length} results in ${searchTime.value}ms`);
     } catch (storeSearchError) {
-      console.warn('Store search failed, falling back to legacy search:', storeSearchError);
-      
-      // Fallback to legacy search engine
-      updateSearchEngineStatus();
-      if (window.searchEngine) {
-        const searchDateFilter = dateFilter.value.type !== 'all' ? dateFilter.value : undefined;
-        const searchResults = await window.searchEngine.search(searchQuery.value.trim(), 50, searchDateFilter);
-        results.value = searchResults;
-        const endTime = performance.now();
-        searchTime.value = Math.round(endTime - startTime);
-      } else {
-        throw new Error('Both store search and legacy search are unavailable');
-      }
+      console.error('Cold storage search failed:', storeSearchError);
+      throw new Error('Cold storage search unavailable');
     }
 
     // Update URL without triggering navigation
@@ -757,6 +936,9 @@ async function performSearch() {
       name: 'search',
       query: queryParams
     });
+    
+    // Track search in debug panel
+    trackSearchInDebugPanel();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown search error';
     console.error('Search failed:', error);
@@ -767,26 +949,10 @@ async function performSearch() {
   }
 }
 
-function updateSearchEngineStatus() {
-  if (typeof window !== 'undefined' && window.searchEngineStatus) {
-    searchEngineStatus.value = { ...window.searchEngineStatus };
-  } else {
-    searchEngineStatus.value = {
-      initialized: false,
-      error: 'Search engine status not available',
-      isInitializing: true
-    };
-  }
-}
 
 function updateThreshold() {
   // Update store threshold
   store.search.setThreshold(searchThreshold.value);
-  
-  // Update legacy search engine as well for fallback
-  if (window.searchEngine) {
-    window.searchEngine.setThreshold(searchThreshold.value);
-  }
   
   // Automatically re-run the search with new threshold
   if (searchQuery.value.trim()) {
@@ -818,67 +984,147 @@ function clearDateFilter() {
   applyDateFilter();
 }
 
-function closeUploadModal() {
-  showUploadModal.value = false;
+
+// AIDEV-NOTE: Import modal handlers
+function closeImportModal() {
+  if (!isImporting.value) {
+    showImportModal.value = false;
+    // Reset import progress
+    importProgress.value = {
+      stage: '',
+      message: '',
+      processed: 0,
+      total: 0,
+      errors: []
+    };
+  }
 }
 
-async function handleUploadComplete() {
-  showUploadModal.value = false;
-  await loadStats();
+// AIDEV-NOTE: Start import process using AppealImportService
+async function startImport() {
+  // Check authentication for cold storage import
+  if (!isAuthenticated.value) {
+    console.log('[UnifiedSearchView] Cold storage import requires authentication');
+    authenticationRequired.value = true;
+    return;
+  }
   
-  // Refresh hot storage through store
+  const timer = startTimer('appeal-cases-import');
+  
+  logImport('Starting appeal cases import', {
+    batchSize: importSettings.value.batchSize,
+    concurrencyLimit: importSettings.value.concurrencyLimit,
+    authenticated: isAuthenticated.value,
+    timestamp: new Date().toISOString()
+  }, 'UnifiedSearchView');
+
+  logUI('Import modal transitioning to progress view', {
+    previousStage: 'configuration',
+    newStage: 'progress'
+  }, 'UnifiedSearchView');
+
+  isImporting.value = true;
+  importProgress.value = {
+    stage: 'Initializing',
+    message: 'Setting up import process...',
+    processed: 0,
+    total: 0,
+    errors: []
+  };
+
   try {
-    await store.hotStorage.refresh();
+    // Set up progress callback
+    appealImportService.setProgressCallback((progress: any) => {
+      importProgress.value = {
+        stage: progress.stage || 'Processing',
+        message: progress.message || 'Processing...',
+        processed: progress.processed || 0,
+        total: progress.total || 0,
+        errors: progress.errors || []
+      };
+    });
+
+    // Start import with configured settings
+    const importStats = await appealImportService.startImport({
+      batchSize: importSettings.value.batchSize,
+      concurrencyLimit: importSettings.value.concurrencyLimit,
+      useFileSystem: false // Always use cold storage
+    });
+    
+    logImport('Import completed successfully', {
+      importStats,
+      successRate: importStats.totalStored > 0 ? 
+        `${((importStats.totalStored / (importStats.totalStored + importStats.errors)) * 100).toFixed(1)}%` : '0%'
+    }, 'UnifiedSearchView');
+
+    // Refresh stats after import
+    const statsTimer = startTimer('refresh-stats-after-import');
+    await loadStats();
+    statsTimer.end({ action: 'refresh-stats' });
+    
+    // Update cold storage stats after import
+    try {
+      await store.coldStorage.loadCacheStats();
+      logUI('Cold storage stats refreshed after import', {
+        newStats: store.state.coldStorage.stats
+      }, 'UnifiedSearchView');
+    } catch (error) {
+      console.warn('Failed to refresh cold storage stats:', error);
+    }
+    
+    logUI('Import completed, closing modal in 2 seconds', {
+      delayMs: 2000,
+      finalStage: importProgress.value.stage,
+      importStats
+    }, 'UnifiedSearchView');
+    
+    // Close modal after brief delay
+    setTimeout(() => {
+      closeImportModal();
+    }, 2000);
+
   } catch (error) {
-    console.error('Failed to refresh hot storage through store:', error);
-  }
-  
-  // Refresh legacy search engine as fallback
-  if (window.searchEngine) {
-    await window.searchEngine.refresh();
+    logger.importError('Import operation failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      processedBeforeFailure: importProgress.value.processed
+    }, 'UnifiedSearchView');
+    
+    importProgress.value.stage = 'Error';
+    importProgress.value.message = `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    importProgress.value.errors.push(`Fatal error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  } finally {
+    isImporting.value = false;
+    timer.end({
+      finalProcessed: importProgress.value.processed,
+      finalErrors: importProgress.value.errors.length
+    });
   }
 }
 
-async function clearAllPDFs() {
-  if (confirm('Are you sure you want to clear all PDFs? This action cannot be undone.')) {
-    // Clear hot storage through store
-    try {
-      await store.hotStorage.clearAll();
-    } catch (error) {
-      console.error('Failed to clear hot storage through store:', error);
-    }
-    
-    // Clear legacy data as fallback
-    await db.clearAllData();
-    await loadStats();
-    await loadSearchHistory();
-    await loadSavedSearches();
-    
-    // Clear current results and search state
-    results.value = [];
-    searchQuery.value = '';
-    store.search.clearResults();
-    
-    // Refresh both storage systems
-    try {
-      await store.hotStorage.refresh();
-    } catch (error) {
-      console.error('Failed to refresh hot storage through store:', error);
-    }
-    
-    if (window.searchEngine) {
-      await window.searchEngine.refresh();
-    }
-  }
-}
+
+
 
 // AIDEV-NOTE: formatFileSize and getDecisionColor functions moved to SearchResultCard component
 
 // AIDEV-NOTE: toggleExpandResult and highlightMatches functions moved to SearchResultCard component
 
 async function openDocument(document: any) {
-  // For now, just show an alert. In a real app, you'd implement PDF viewing
-  alert(`Opening ${document.filename}\n\nNote: PDF viewer not implemented in this demo. In a production app, this would open the PDF in a viewer.`);
+  try {
+    // Get the doc_link_span URL from document metadata
+    const linkUrl = document.metadata?.doc_link_span;
+    
+    if (linkUrl && linkUrl !== 'NOT_FOUND') {
+      // Open the URL in a new tab
+      window.open(linkUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      // Fallback if no URL is available
+      alert(`No document link available for ${document.filename}\n\nThe document may not have an associated online link.`);
+    }
+  } catch (error) {
+    console.error('Failed to open document:', error);
+    alert(`Error opening document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 // AIDEV-NOTE: Hide document from current search results only (not permanently deleted)
@@ -908,13 +1154,6 @@ const paginatedResults = computed(() => {
 });
 
 // Error handling functions
-function retryInitialization() {
-  // Force search engine re-initialization
-  if (window.searchEngine) {
-    window.searchEngine.refresh();
-  }
-  updateSearchEngineStatus();
-}
 
 function retrySearch() {
   searchError.value = null;
@@ -929,6 +1168,60 @@ function clearError() {
 function getPercentage(value: number, total: number): string {
   if (total === 0) return '0';
   return ((value / total) * 100).toFixed(1);
+}
+
+// AIDEV-NOTE: Authentication handling for cold storage
+async function checkColdStorageAuthRequirement(): Promise<boolean> {
+  try {
+    // Check if cold storage has encrypted batches that require authentication
+    const storageInfo = store.state.coldStorage.stats;
+    return storageInfo.totalDocuments > 0; // Assume all cold storage requires auth
+  } catch (error) {
+    console.error('Failed to check cold storage auth requirement:', error);
+    return true; // Default to requiring authentication
+  }
+}
+
+
+async function authenticateForColdStorage() {
+  try {
+    // Use global authentication function from App.vue
+    const authState = authService.getAuthState();
+    
+    if (authState.hasChallenge && !authState.isAuthenticated) {
+      // Password is set up but user isn't authenticated - show login
+      console.log('[UnifiedSearchView] Authentication challenge exists, user needs to login');
+      if (typeof window !== 'undefined' && window.showAuthentication) {
+        window.showAuthentication(true); // true = login mode
+      }
+    } else if (!authState.hasChallenge) {
+      // No password set up - show setup
+      console.log('[UnifiedSearchView] No authentication setup, user needs to create password');
+      if (typeof window !== 'undefined' && window.showAuthentication) {
+        window.showAuthentication(false); // false = setup mode
+      }
+    }
+    
+    // Close the authentication required modal
+    authenticationRequired.value = false;
+  } catch (error) {
+    console.error('Failed to authenticate for cold storage:', error);
+    searchError.value = 'Authentication failed. Please try again.';
+  }
+}
+
+// Debug panel methods
+function toggleDebugPanel() {
+  showDebugPanel.value = !showDebugPanel.value;
+  console.log('[UnifiedSearchView] Debug panel toggled:', showDebugPanel.value);
+}
+
+// Track search in debug panel when search completes
+function trackSearchInDebugPanel() {
+  if (debugPanel.value && searchQuery.value && searchTime.value > 0) {
+    const totalResults = results.value.length;
+    debugPanel.value.trackSearch(searchQuery.value, totalResults, searchTime.value);
+  }
 }
 
 // AIDEV-NOTE: getStorageTierBadge function moved to SearchResultCard component
