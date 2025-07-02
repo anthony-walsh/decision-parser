@@ -713,54 +713,81 @@ class ColdStorageWorker {
         return;
       }
 
-      // Limit number of batches to search for performance
-      const batchesToSearch = relevantBatches.slice(0, 10);
-      console.log(`[ColdStorageWorker] Limited to ${batchesToSearch.length} batches for search (from ${relevantBatches.length} relevant)`);
+      // ALWAYS search ALL batches for complete coverage - no limiting for performance
+      const batchesToSearch = relevantBatches; // Search all batches, no slicing
+      console.log(`[ColdStorageWorker] Will search ALL ${batchesToSearch.length} batches for complete coverage`);
+      
+      // Categorize batches for two-phase processing
+      const highPriorityBatches = batchesToSearch.filter(b => b.hasKeywordMatch);
+      const lowPriorityBatches = batchesToSearch.filter(b => !b.hasKeywordMatch);
+      
+      console.log(`[ColdStorageWorker] Search phases: HIGH priority (${highPriorityBatches.length} batches), LOW priority (${lowPriorityBatches.length} batches)`);
       
       this.postMessage({
         type: 'cold-search-progress',
         id,
         payload: { 
-          message: `Searching ${batchesToSearch.length} archive sections...`,
+          message: `Searching all ${batchesToSearch.length} archive sections for complete coverage...`,
           totalBatches: batchesToSearch.length,
-          completedBatches: 0
+          completedBatches: 0,
+          phases: {
+            highPriority: highPriorityBatches.length,
+            lowPriority: lowPriorityBatches.length
+          }
         }
       });
 
       const allResults: any[] = [];
       let completedBatches = 0;
-      console.log('[ColdStorageWorker] Starting batch processing for search...');
+      console.log('[ColdStorageWorker] Starting comprehensive two-phase search...');
 
-      // Process batches in chunks to manage memory
-      for (let i = 0; i < batchesToSearch.length; i += this.MAX_CONCURRENT_BATCHES) {
-        const batchChunk = batchesToSearch.slice(i, i + this.MAX_CONCURRENT_BATCHES);
-        console.log(`[ColdStorageWorker] Processing batch chunk ${Math.floor(i / this.MAX_CONCURRENT_BATCHES) + 1}:`, {
-          chunkSize: batchChunk.length,
-          batchIds: batchChunk.map(b => b.batchId)
-        });
+      // PHASE 1: Search high-priority batches first (keyword matches)
+      if (highPriorityBatches.length > 0) {
+        console.log(`[ColdStorageWorker] === PHASE 1: Searching ${highPriorityBatches.length} high-priority batches ===`);
         
-        // Search chunk of batches
-        const chunkResults = await this.searchBatchChunk(batchChunk, query);
-        console.log(`[ColdStorageWorker] Chunk returned ${chunkResults.length} results`);
-        allResults.push(...chunkResults);
-
-        completedBatches += batchChunk.length;
-
-        // Report progress
         this.postMessage({
           type: 'cold-search-progress',
           id,
           payload: { 
-            message: `Searched ${completedBatches}/${batchesToSearch.length} archive sections...`,
+            message: `Phase 1: Searching priority batches (${highPriorityBatches.length} of ${batchesToSearch.length})...`,
             totalBatches: batchesToSearch.length,
-            completedBatches,
-            partialResults: chunkResults
+            completedBatches: 0,
+            currentPhase: 'high-priority'
           }
         });
 
-        // Yield control to prevent blocking
-        await this.yieldControl();
+        const highPriorityResults = await this.searchBatchesWithProgress(highPriorityBatches.map(b => b.batch), query, id, 'high-priority');
+        allResults.push(...highPriorityResults);
+        completedBatches += highPriorityBatches.length;
+        
+        console.log(`[ColdStorageWorker] Phase 1 completed: ${highPriorityResults.length} results from ${highPriorityBatches.length} batches`);
       }
+
+      // PHASE 2: Search remaining batches for complete coverage (ALWAYS executed)
+      if (lowPriorityBatches.length > 0) {
+        console.log(`[ColdStorageWorker] === PHASE 2: Searching ${lowPriorityBatches.length} remaining batches for complete coverage ===`);
+        
+        this.postMessage({
+          type: 'cold-search-progress',
+          id,
+          payload: { 
+            message: `Phase 2: Completing comprehensive search (${lowPriorityBatches.length} remaining batches)...`,
+            totalBatches: batchesToSearch.length,
+            completedBatches,
+            currentPhase: 'comprehensive'
+          }
+        });
+
+        const lowPriorityResults = await this.searchBatchesWithProgress(lowPriorityBatches.map(b => b.batch), query, id, 'comprehensive');
+        allResults.push(...lowPriorityResults);
+        completedBatches += lowPriorityBatches.length;
+        
+        console.log(`[ColdStorageWorker] Phase 2 completed: ${lowPriorityResults.length} results from ${lowPriorityBatches.length} batches`);
+      }
+
+      console.log(`[ColdStorageWorker] === COMPREHENSIVE SEARCH COMPLETED ===`);
+      console.log(`[ColdStorageWorker] Total batches searched: ${completedBatches}/${batchesToSearch.length}`);
+      console.log(`[ColdStorageWorker] Total results found: ${allResults.length}`);
 
       // Sort results by relevance and apply limit
       console.log(`[ColdStorageWorker] Sorting and limiting results:`, {
@@ -798,7 +825,7 @@ class ColdStorageWorker {
     }
   }
 
-  private async findRelevantBatches(query: string, options: any): Promise<BatchInfo[]> {
+  private async findRelevantBatches(query: string, options: any): Promise<Array<{ batch: BatchInfo; score: number; hasKeywordMatch: boolean }>> {
     console.log(`[ColdStorageWorker] ===== SEARCH DIAGNOSTICS START =====`);
     console.log(`[ColdStorageWorker] Finding relevant batches for query: "${query}"`);
     console.log(`[ColdStorageWorker] Search options:`, JSON.stringify(options, null, 2));
@@ -828,7 +855,7 @@ class ColdStorageWorker {
     console.log(`[ColdStorageWorker] Processed query terms (min 3 chars):`, queryTerms);
     console.log(`[ColdStorageWorker] Processing ${this.storageIndex.batches.length} batches for relevance...`);
     
-    const relevantBatches: Array<{ batch: BatchInfo; score: number }> = [];
+    const relevantBatches: Array<{ batch: BatchInfo; score: number; hasKeywordMatch: boolean }> = [];
 
     for (let i = 0; i < this.storageIndex.batches.length; i++) {
       const batch = this.storageIndex.batches[i];
@@ -844,15 +871,15 @@ class ColdStorageWorker {
       let score = 0;
       const scoreBreakdown: string[] = [];
 
-      // Check keyword relevance
+      // Check keyword relevance with higher scoring for matches
       const batchKeywords = batch.keywords?.map(k => k.toLowerCase()) || [];
       console.log(`[ColdStorageWorker] Batch keywords (lowercase):`, batchKeywords);
       
       for (const term of queryTerms) {
         for (const keyword of batchKeywords) {
           if (keyword.includes(term) || term.includes(keyword)) {
-            score += 1;
-            scoreBreakdown.push(`keyword match: "${term}" ↔ "${keyword}" (+1)`);
+            score += 10; // Higher score for keyword matches to prioritize them
+            scoreBreakdown.push(`keyword match: "${term}" ↔ "${keyword}" (+10)`);
           }
         }
       }
@@ -872,38 +899,48 @@ class ColdStorageWorker {
         const overlaps = batchStart <= filterEnd && batchEnd >= filterStart;
         console.log(`[ColdStorageWorker] Date overlap result:`, overlaps);
         
-        if (!overlaps) {
-          console.log(`[ColdStorageWorker] Batch ${batch.batchId} excluded due to date filter mismatch`);
-          continue; // Skip batch if no date overlap
+        if (overlaps) {
+          score += 5; // Higher bonus for date relevance
+          scoreBreakdown.push(`date overlap (+5)`);
+        } else {
+          console.log(`[ColdStorageWorker] Batch ${batch.batchId} has no date overlap but will still be searched`);
         }
-        score += 2; // Bonus for date relevance
-        scoreBreakdown.push(`date overlap (+2)`);
       }
 
-      console.log(`[ColdStorageWorker] Batch ${batch.batchId} final score: ${score} (${scoreBreakdown.join(', ') || 'no matches'})`);
-
-      if (score > 0) {
-        relevantBatches.push({ batch, score });
-        console.log(`[ColdStorageWorker] ✓ Batch ${batch.batchId} added to relevant batches`);
-      } else {
-        console.log(`[ColdStorageWorker] ✗ Batch ${batch.batchId} excluded (score: 0)`);
+      // Ensure ALL batches are included with minimum base score for completeness
+      const finalScore = Math.max(score, 1); // Minimum score of 1 ensures all batches are searched
+      const hasKeywordMatch = score >= 10; // Track if batch had keyword matches for prioritization
+      
+      if (finalScore !== score) {
+        scoreBreakdown.push(`base score applied (+${finalScore - score})`);
       }
+      
+      console.log(`[ColdStorageWorker] Batch ${batch.batchId} final score: ${finalScore} (${scoreBreakdown.join(', ') || 'base score only'})`);
+
+      relevantBatches.push({ batch, score: finalScore, hasKeywordMatch });
+      console.log(`[ColdStorageWorker] ✓ Batch ${batch.batchId} added to search queue (priority: ${hasKeywordMatch ? 'HIGH' : 'LOW'})`);
     }
 
-    // Sort by relevance score and return batch info
+    // Sort by relevance score (high-priority first) and return extended batch info
     relevantBatches.sort((a, b) => b.score - a.score);
-    const finalBatches = relevantBatches.map(item => item.batch);
     
-    console.log(`[ColdStorageWorker] ===== BATCH SELECTION SUMMARY =====`);
-    console.log(`[ColdStorageWorker] Total batches evaluated: ${this.storageIndex.batches.length}`);
-    console.log(`[ColdStorageWorker] Relevant batches found: ${finalBatches.length}`);
-    console.log(`[ColdStorageWorker] Selected batches:`, finalBatches.map(b => ({
-      batchId: b.batchId,
-      score: relevantBatches.find(rb => rb.batch.batchId === b.batchId)?.score
+    // Categorize batches for logging
+    const highPriorityBatches = relevantBatches.filter(rb => rb.hasKeywordMatch);
+    const lowPriorityBatches = relevantBatches.filter(rb => !rb.hasKeywordMatch);
+    
+    console.log(`[ColdStorageWorker] ===== COMPREHENSIVE SEARCH SUMMARY =====`);
+    console.log(`[ColdStorageWorker] Total batches available: ${this.storageIndex.batches.length}`);
+    console.log(`[ColdStorageWorker] ALL batches will be searched: ${relevantBatches.length}`);
+    console.log(`[ColdStorageWorker] High-priority batches (keyword matches): ${highPriorityBatches.length}`);
+    console.log(`[ColdStorageWorker] Low-priority batches (no keyword matches): ${lowPriorityBatches.length}`);
+    console.log(`[ColdStorageWorker] Batch processing order:`, relevantBatches.map(rb => ({
+      batchId: rb.batch.batchId,
+      score: rb.score,
+      priority: rb.hasKeywordMatch ? 'HIGH' : 'LOW'
     })));
     console.log(`[ColdStorageWorker] ===== SEARCH DIAGNOSTICS END =====`);
     
-    return finalBatches;
+    return relevantBatches;
   }
 
   private async searchBatchChunk(batches: BatchInfo[], query: string): Promise<any[]> {
@@ -1123,6 +1160,55 @@ class ColdStorageWorker {
     }
 
     return results;
+  }
+
+  /**
+   * Search batches with progress reporting and phase tracking
+   * AIDEV-NOTE: Supports comprehensive search with real-time progress updates
+   */
+  private async searchBatchesWithProgress(batches: BatchInfo[], query: string, messageId?: string, phase: string = 'search'): Promise<any[]> {
+    const allResults: any[] = [];
+    let completedBatches = 0;
+    
+    console.log(`[ColdStorageWorker] Starting ${phase} phase: processing ${batches.length} batches`);
+
+    // Process batches in chunks to manage memory
+    for (let i = 0; i < batches.length; i += this.MAX_CONCURRENT_BATCHES) {
+      const batchChunk = batches.slice(i, i + this.MAX_CONCURRENT_BATCHES);
+      console.log(`[ColdStorageWorker] ${phase} - Processing chunk ${Math.floor(i / this.MAX_CONCURRENT_BATCHES) + 1}:`, {
+        phase,
+        chunkSize: batchChunk.length,
+        batchIds: batchChunk.map(b => b.batchId)
+      });
+      
+      // Search chunk of batches
+      const chunkResults = await this.searchBatchChunk(batchChunk, query);
+      console.log(`[ColdStorageWorker] ${phase} - Chunk returned ${chunkResults.length} results`);
+      allResults.push(...chunkResults);
+
+      completedBatches += batchChunk.length;
+
+      // Report progress with phase information
+      if (messageId) {
+        this.postMessage({
+          type: 'cold-search-progress',
+          id: messageId,
+          payload: { 
+            message: `${phase === 'high-priority' ? 'Phase 1' : 'Phase 2'}: Searched ${completedBatches}/${batches.length} batches...`,
+            totalBatches: batches.length,
+            completedBatches,
+            currentPhase: phase,
+            partialResults: chunkResults
+          }
+        });
+      }
+
+      // Yield control to prevent blocking
+      await this.yieldControl();
+    }
+
+    console.log(`[ColdStorageWorker] ${phase} phase completed: ${allResults.length} results from ${batches.length} batches`);
+    return allResults;
   }
 
   private extractSnippet(content: string, searchTerm: string, contextLength: number = 150): string {

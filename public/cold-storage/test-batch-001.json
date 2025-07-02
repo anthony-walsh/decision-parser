@@ -1,0 +1,93 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "batchId": "test-batch-001",
+    "documentCount": 3,
+    "created": "2025-06-27T23:00:00.000Z",
+    "encrypted": false,
+    "description": "Test batch for development"
+  },
+  "documents": [
+    {
+      "id": "test-doc-001",
+      "filename": "test-appeal-001.pdf",
+      "content": "TOWN AND COUNTRY PLANNING ACT 1990 - APPEAL DECISION\n\nAppeal Ref: APP/B1234/A/21/1234567\nThe appeal is made under section 78 of the Town and Country Planning Act 1990 against a refusal to grant planning permission. The appeal is made by Mr. John Smith against the decision of Cotswold District Council. The application was refused for the proposed single storey rear extension to dwelling house.\n\nMAIN ISSUES\nThe main issues are:\n- Whether the proposed development would preserve the character and appearance of the Conservation Area\n- The effect on the living conditions of neighbouring residents\n- Highway safety considerations\n\nREASONING AND CONCLUSIONS\nCharacter and Appearance:\nThe proposed extension would be located to the rear of the property within the village conservation area. The extension would be clearly visible from the public footpath to the rear. The proposed materials and design would not be in keeping with the historic character of the conservation area. The development would cause harm to the character and appearance of the conservation area.\n\nNeighbour Amenity:\nThe extension would be positioned close to the boundary with No. 23 High Street. Given the scale and positioning, the development would result in overbearing impact and loss of light to the neighbouring property.\n\nDECISION\nFor the reasons given above, the appeal is dismissed.",
+      "doc_link_span": "https://www.gov.uk/government/organisations/planning-inspectorate",
+      "case_type": "Planning Appeal",
+      "case_id": "APP/B1234/A/21/1234567",
+      "start_date": "2021-01-01",
+      "lpa_name": "Cotswold District Council",
+      "questionnaire_due": "2021-01-15",
+      "statement_due": "2021-02-01",
+      "case_officer": "Sarah Johnson",
+      "interested_party_comments_due": "2021-02-15",
+      "procedure": "Written Representations",
+      "final_comments_due": "2021-03-01",
+      "status": "Decided",
+      "inquiry_evidence_due": "2021-03-15",
+      "decision_outcome": "Dismissed",
+      "event_date": "2021-04-01",
+      "link_status": "Linked",
+      "decision_date": "2021-04-15",
+      "linked_case_count": 1,
+      "metadata": {
+        "extractedDate": "2025-06-27T23:00:00.000Z",
+        "contentSummary": "Single storey extension refused - conservation area character concerns"
+      }
+    },
+    {
+      "id": "test-doc-002",
+      "filename": "test-appeal-002.pdf",
+      "content": "TOWN AND COUNTRY PLANNING ACT 1990 - APPEAL DECISION\n\nAppeal Ref: APP/H5678/W/22/2345678\nThe appeal is made under section 78 of the Town and Country Planning Act 1990 against a refusal to grant planning permission. The appeal is made by Greenfield Developments Ltd against the decision of Stratford-on-Avon District Council. The application was refused for the erection of 15 dwellings with associated access and landscaping.\n\nMAIN ISSUES\nThe main issues are:\n- Whether the proposed development would be appropriate in terms of its effect on the character and appearance of the area\n- The effect on highway safety and traffic generation\n- The provision of affordable housing\n- The effect on protected species and biodiversity\n\nREASONING AND CONCLUSIONS\nCharacter and Appearance:\nThe site is located on the edge of the village in an area of open countryside. The development would represent a significant intrusion into the rural character of the area. The proposed housing would be visible from several public vantage points and would urbanise what is currently an attractive rural setting. The harm to the character and appearance of the countryside would be substantial.\n\nHighway Safety:\nThe proposed access would utilise the existing field gate onto Mill Lane. The lane is narrow with limited visibility splays. The development would generate approximately 30 additional vehicle movements per day. This would result in highway safety concerns particularly given the proximity to the primary school.\n\nAffordable Housing:\nThe development would provide 5 affordable housing units (33%) which meets the local plan requirement. However, this benefit does not outweigh the harm identified.\n\nBiodiversity:\nThe site contains hedgerows and mature trees which provide habitat for birds and small mammals. The development would result in the loss of hedgerow and habitat. Mitigation measures have been proposed but would not fully compensate for the loss.\n\nDECISION\nFor the reasons given above, the appeal is dismissed.",
+      "doc_link_span": "https://www.gov.uk/government/organisations/planning-inspectorate",
+      "case_type": "Planning Appeal",
+      "case_id": "APP/H5678/W/22/2345678",
+      "start_date": "2022-03-15",
+      "lpa_name": "Stratford-on-Avon District Council",
+      "questionnaire_due": "2022-03-29",
+      "statement_due": "2022-04-15",
+      "case_officer": "Michael Thompson",
+      "interested_party_comments_due": "2022-04-30",
+      "procedure": "Written Representations",
+      "final_comments_due": "2022-05-15",
+      "status": "Decided",
+      "inquiry_evidence_due": "N/A",
+      "decision_outcome": "Dismissed",
+      "event_date": "2022-06-10",
+      "link_status": "Not Linked",
+      "decision_date": "2022-06-10",
+      "linked_case_count": 0,
+      "metadata": {
+        "extractedDate": "2025-06-27T23:00:00.000Z",
+        "contentSummary": "15 dwelling development refused - countryside character harm"
+      }
+    },
+    {
+      "id": "test-doc-003",
+      "filename": "test-appeal-003.pdf",
+      "content": "TOWN AND COUNTRY PLANNING ACT 1990 - APPEAL DECISION\n\nAppeal Ref: APP/K9012/D/23/3456789\nThe appeal is made under section 78 of the Town and Country Planning Act 1990 against a refusal to grant planning permission. The appeal is made by Mrs. Helen Davies against the decision of Bath and North East Somerset Council. The application was refused for a two-storey side extension to dwelling house.\n\nMAIN ISSUES\nThe main issues are:\n- The effect of the proposed development on the character and appearance of the host dwelling and wider streetscene\n- The effect on the living conditions of neighbouring occupiers\n\nREASONING AND CONCLUSIONS\nCharacter and Appearance:\nThe existing dwelling is a 1930s semi-detached house of modest proportions typical of the local area. The proposed two-storey side extension would effectively double the width of the property. The extension would be subordinate in height to the main dwelling and would use matching materials. The design follows the established pattern of similar extensions in the street. The proposal would not harm the character and appearance of the dwelling or streetscene.\n\nNeighbour Amenity:\nThe extension would be built adjacent to the boundary with No. 42 Lansdown Road. However, the extension would not project beyond the rear building line of the neighbouring property. The proposed development would not result in unacceptable loss of light, outlook or privacy to neighbouring occupiers. The development would not cause harm to living conditions.\n\nOther Matters:\nThe proposal includes provision for two additional parking spaces within the curtilage. This would adequately serve the enlarged dwelling and would not result in highway safety concerns.\n\nDECISION\nFor the reasons given above, the appeal is allowed and planning permission is granted subject to the conditions set out in the attached schedule.",
+      "doc_link_span": "https://www.gov.uk/government/organisations/planning-inspectorate",
+      "case_type": "Planning Appeal",
+      "case_id": "APP/K9012/D/23/3456789",
+      "start_date": "2023-05-20",
+      "lpa_name": "Bath and North East Somerset Council",
+      "questionnaire_due": "2023-06-03",
+      "statement_due": "2023-06-20",
+      "case_officer": "Emma Wilson",
+      "interested_party_comments_due": "2023-07-05",
+      "procedure": "Householder Appeal Service",
+      "final_comments_due": "2023-07-20",
+      "status": "Decided",
+      "inquiry_evidence_due": "N/A",
+      "decision_outcome": "Allowed",
+      "event_date": "2023-08-15",
+      "link_status": "Not Linked",
+      "decision_date": "2023-08-15",
+      "linked_case_count": 0,
+      "metadata": {
+        "extractedDate": "2025-06-27T23:00:00.000Z",
+        "contentSummary": "Two-storey side extension allowed - no character harm"
+      }
+    }
+  ]
+}
