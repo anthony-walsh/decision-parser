@@ -27,13 +27,13 @@
       <div class="bg-green-900/20 p-3 rounded-lg text-xs border border-green-800/30">
         <h4 class="font-semibold text-green-300 mb-2">Important Dates</h4>
         <div class="grid grid-cols-1 gap-1 text-green-200">
-          <div><span class="font-medium">Start Date:</span> {{ getMetadataValue('start_date') }}</div>
-          <div><span class="font-medium">Questionnaire Due:</span> {{ getMetadataValue('questionnaire_due') }}</div>
-          <div><span class="font-medium">Statement Due:</span> {{ getMetadataValue('statement_due') }}</div>
-          <div><span class="font-medium">Interested Party Comments Due:</span> {{ getMetadataValue('interested_party_comments_due') }}</div>
-          <div><span class="font-medium">Final Comments Due:</span> {{ getMetadataValue('final_comments_due') }}</div>
-          <div><span class="font-medium">Inquiry Evidence Due:</span> {{ getMetadataValue('inquiry_evidence_due') }}</div>
-          <div><span class="font-medium">Event Date:</span> {{ getMetadataValue('event_date') }}</div>
+          <div><span class="font-medium">Start Date:</span> {{ getFormattedMetadataValue('start_date') }}</div>
+          <div><span class="font-medium">Questionnaire Due:</span> {{ getFormattedMetadataValue('questionnaire_due') }}</div>
+          <div><span class="font-medium">Statement Due:</span> {{ getFormattedMetadataValue('statement_due') }}</div>
+          <div><span class="font-medium">Interested Party Comments Due:</span> {{ getFormattedMetadataValue('interested_party_comments_due') }}</div>
+          <div><span class="font-medium">Final Comments Due:</span> {{ getFormattedMetadataValue('final_comments_due') }}</div>
+          <div><span class="font-medium">Inquiry Evidence Due:</span> {{ getFormattedMetadataValue('inquiry_evidence_due') }}</div>
+          <div><span class="font-medium">Event Date:</span> {{ getFormattedMetadataValue('event_date') }}</div>
         </div>
       </div>
 
@@ -42,12 +42,12 @@
         <h4 class="font-semibold text-purple-300 mb-2">Decision Information</h4>
         <div class="grid grid-cols-1 gap-1 text-purple-200">
           <div>
-            <span class="font-medium">Decision Outcome:</span> 
+            <span class="font-medium">Decision Outcome: </span> 
             <span :class="getDecisionColor(getMetadataValue('decision_outcome'))">
               {{ getMetadataValue('decision_outcome') }}
             </span>
           </div>
-          <div><span class="font-medium">Decision Date:</span> {{ getMetadataValue('decision_date') }}</div>
+          <div><span class="font-medium">Decision Date:</span> {{ getFormattedMetadataValue('decision_date') }}</div>
           <div><span class="font-medium">Link Status:</span> {{ getMetadataValue('link_status') }}</div>
           <div><span class="font-medium">Linked Case Count:</span> {{ getMetadataValue('linked_case_count') }}</div>
         </div>
@@ -173,6 +173,79 @@ function getDecisionColor(decision: string | undefined): string {
   return 'text-gray-400';
 }
 
+function formatDateToReadable(dateString: string): string {
+  // Return original value if it's already "NOT_FOUND" or empty
+  if (!dateString || dateString === 'NOT_FOUND' || dateString.trim() === '') {
+    return dateString;
+  }
+
+  try {
+    // Parse the date - handle various formats (ISO, YYYY-MM-DD, etc.)
+    const date = new Date(dateString);
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return dateString; // Return original if parsing failed
+    }
+
+    // Get day with ordinal suffix
+    const day = date.getDate();
+    const dayWithOrdinal = day + getOrdinalSuffix(day);
+    
+    // Get full month name
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const month = months[date.getMonth()];
+    
+    // Get full year
+    const year = date.getFullYear();
+    
+    return `${dayWithOrdinal} ${month} ${year}`;
+  } catch (error) {
+    // Return original value if any error occurs
+    return dateString;
+  }
+}
+
+function getOrdinalSuffix(day: number): string {
+  if (day >= 11 && day <= 13) {
+    return 'th'; // Special case for 11th, 12th, 13th
+  }
+  switch (day % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+}
+
+function getFormattedMetadataValue(field: string): string {
+  // Define date fields that should be formatted with human-readable dates
+  const dateFields = [
+    'start_date',
+    'questionnaire_due', 
+    'statement_due',
+    'interested_party_comments_due',
+    'final_comments_due',
+    'inquiry_evidence_due',
+    'event_date',
+    'decision_date'
+  ];
+
+  // Get the raw metadata value
+  const rawValue = getMetadataValue(field);
+  
+  // If it's a date field and not "NOT_FOUND", format it
+  if (dateFields.includes(field) && rawValue !== 'NOT_FOUND') {
+    return formatDateToReadable(rawValue);
+  }
+  
+  // For non-date fields or "NOT_FOUND" values, return as-is
+  return rawValue;
+}
+
 function highlightMatches(text: string, query: string): string {
   if (!query.trim()) return text;
   
@@ -182,7 +255,7 @@ function highlightMatches(text: string, query: string): string {
   
   words.forEach(word => {
     const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    highlightedText = highlightedText.replace(regex, '<span class="bg-blue-500/40 text-blue-100 px-1 rounded font-medium">$1</span>');
+    highlightedText = highlightedText.replace(regex, '<span class="bg-white text-black px-1 rounded font-medium">$1</span>');
   });
   
   return highlightedText;

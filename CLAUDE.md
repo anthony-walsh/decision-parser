@@ -112,7 +112,7 @@ For sensitive changes (Input Handling, Monetary Calculations, Authentication), e
 
 This project is a web-based application for processing and searching UK Planning Appeal decision letters. The application provides encrypted document storage, advanced search capabilities, and secure access to large archives of legal documents through a modern cold storage architecture.
 
-**AIDEV-NOTE**: This application recently completed a major migration from Dexie.js to a cold storage only architecture (January 2025). All document processing now uses encrypted batch storage with worker-based search for enhanced security and performance.
+**AIDEV-NOTE**: This application recently completed a major migration from Dexie.js to a cold storage only architecture (July 2025). All document processing now uses encrypted batch storage with worker-based search for enhanced security and performance.
 
 **Golden rule**: When unsure about implementation details or requirements, ALWAYS consult the developer rather than making assumptions.
 

@@ -381,7 +381,8 @@ defineExpose({
 </script>
 
 <style scoped>
+/* AIDEV-NOTE: Use theme variable for consistent font family */
 .search-debug-panel {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-family-sans);
 }
 </style>

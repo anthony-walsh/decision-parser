@@ -123,5 +123,58 @@ export interface SearchSummaryData {
   // AIDEV-NOTE: Add applied filter information to search summary
   appliedFilters?: {
     dateFilter?: DateFilter;
+    metadataFilters?: MetadataFilters;
   };
+}
+
+// AIDEV-NOTE: Comprehensive metadata filtering interfaces for advanced search functionality
+export interface DateRangeFilter {
+  enabled: boolean;
+  start?: string; // ISO date string
+  end?: string; // ISO date string
+}
+
+export interface MetadataFilters {
+  // Case Information filters
+  lpaNames: string[];
+  caseTypes: string[];
+  caseOfficers: string[];
+  procedures: string[];
+  statuses: string[];
+  
+  // Important Dates filters
+  dateFilters: {
+    startDate: DateRangeFilter;
+    questionnaireDue: DateRangeFilter;
+    statementDue: DateRangeFilter;
+    interestedPartyCommentsDue: DateRangeFilter;
+    finalCommentsDue: DateRangeFilter;
+    inquiryEvidenceDue: DateRangeFilter;
+    eventDate: DateRangeFilter;
+  };
+  
+  // Decision Information filters
+  decisionOutcomes: string[];
+  hasLinkedCases?: boolean; // null = no filter, true = has linked cases, false = no linked cases
+}
+
+export interface FilterOptions {
+  lpaNames: string[];
+  caseTypes: string[];
+  caseOfficers: string[];
+  procedures: string[];
+  statuses: string[];
+  decisionOutcomes: string[];
+}
+
+export interface FilterCounts {
+  total: number;
+  lpaNames: number;
+  caseTypes: number;
+  caseOfficers: number;
+  procedures: number;
+  statuses: number;
+  dateFilters: number;
+  decisionOutcomes: number;
+  linkedCases: number;
 }

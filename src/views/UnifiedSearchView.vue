@@ -195,6 +195,148 @@
           </button>
         </div>
       </div>
+
+      <!-- Advanced Metadata Filters Section -->
+      <div v-if="results.length > 0" class="bg-gray-800 rounded-xl shadow-lg border border-gray-700 p-4">
+        <!-- Filter Header with Toggle -->
+        <div class="flex items-center justify-between mb-3">
+          <label class="text-base font-medium text-gray-200">Advanced Filters</label>
+          <div class="flex items-center gap-3">
+            <span v-if="activeFilterCount > 0" class="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">
+              {{ activeFilterCount }} active
+            </span>
+            <button
+              @click="showAdvancedFilters = !showAdvancedFilters"
+              class="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              {{ showAdvancedFilters ? 'Hide Filters' : 'Show Filters' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Expandable Filter Controls -->
+        <div v-if="showAdvancedFilters" class="space-y-4">
+          
+          <!-- Case Information Filters -->
+          <div class="bg-blue-900/10 border border-blue-800/20 rounded-lg p-3">
+            <h4 class="text-sm font-medium text-blue-300 mb-3">Case Information</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              
+              <!-- LPA Names Filter -->
+              <div v-if="filterOptions.lpaNames.length > 0">
+                <label class="block text-xs text-gray-400 mb-1">LPA Names ({{ filterOptions.lpaNames.length }})</label>
+                <MultiSelect 
+                  v-model="metadataFilters.lpaNames" 
+                  :options="filterOptions.lpaNames"
+                  filter
+                  variant="filled"
+                  placeholder="Select LPAs..."
+                  :maxSelectedLabels="3"
+                  class="w-full text-xs"
+                />
+              </div>
+
+              <!-- Case Types Filter -->
+              <div v-if="filterOptions.caseTypes.length > 0">
+                <label class="block text-xs text-gray-400 mb-1">Case Types ({{ filterOptions.caseTypes.length }})</label>
+                <MultiSelect 
+                  v-model="metadataFilters.caseTypes" 
+                  :options="filterOptions.caseTypes"
+                  filter
+                  placeholder="Select case types..."
+                  :maxSelectedLabels="3"
+                  class="w-full text-xs"
+                />
+              </div>
+
+              <!-- Case Officers Filter -->
+              <div v-if="filterOptions.caseOfficers.length > 0">
+                <label class="block text-xs text-gray-400 mb-1">Case Officers ({{ filterOptions.caseOfficers.length }})</label>
+                <MultiSelect 
+                  v-model="metadataFilters.caseOfficers" 
+                  :options="filterOptions.caseOfficers"
+                  filter
+                  placeholder="Select case officers..."
+                  :maxSelectedLabels="3"
+                  class="w-full text-xs"
+                />
+              </div>
+
+              <!-- Procedures Filter -->
+              <div v-if="filterOptions.procedures.length > 0">
+                <label class="block text-xs text-gray-400 mb-1">Procedures ({{ filterOptions.procedures.length }})</label>
+                <MultiSelect 
+                  v-model="metadataFilters.procedures" 
+                  :options="filterOptions.procedures"
+                  filter
+                  placeholder="Select procedures..."
+                  :maxSelectedLabels="3"
+                  class="w-full text-xs"
+                />
+              </div>
+
+              <!-- Statuses Filter -->
+              <div v-if="filterOptions.statuses.length > 0">
+                <label class="block text-xs text-gray-400 mb-1">Statuses ({{ filterOptions.statuses.length }})</label>
+                <MultiSelect 
+                  v-model="metadataFilters.statuses" 
+                  :options="filterOptions.statuses"
+                  filter
+                  placeholder="Select statuses..."
+                  :maxSelectedLabels="3"
+                  class="w-full text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Decision Information Filters -->
+          <div class="bg-purple-900/10 border border-purple-800/20 rounded-lg p-3">
+            <h4 class="text-sm font-medium text-purple-300 mb-3">Decision Information</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              
+              <!-- Decision Outcomes Filter -->
+              <div v-if="filterOptions.decisionOutcomes.length > 0">
+                <label class="block text-xs text-gray-400 mb-1">Decision Outcomes</label>
+                <MultiSelect 
+                  v-model="metadataFilters.decisionOutcomes" 
+                  :options="filterOptions.decisionOutcomes"
+                  filter
+                  placeholder="Select decision outcomes..."
+                  :maxSelectedLabels="3"
+                  class="w-full text-xs"
+                />
+              </div>
+
+              <!-- Linked Cases Filter -->
+              <div>
+                <label class="block text-xs text-gray-400 mb-1">Linked Cases</label>
+                <select 
+                  v-model="metadataFilters.hasLinkedCases" 
+                  class="w-full px-2 py-1 border border-gray-600 rounded text-xs bg-gray-700 text-white"
+                >
+                  <option :value="undefined">All Cases</option>
+                  <option :value="true">Has Linked Cases</option>
+                  <option :value="false">No Linked Cases</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter Actions -->
+          <div class="flex justify-between items-center pt-2 border-t border-gray-700">
+            <div class="text-xs text-gray-500">
+              Showing {{ filteredResults.length }} of {{ results.length }} results
+            </div>
+            <button
+              @click="clearAllFilters"
+              class="text-xs text-gray-500 hover:text-gray-300 underline"
+            >
+              Clear All Filters
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Search Summary Section -->
@@ -624,10 +766,11 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useStorageStore } from '@/stores';
 import { searchHistoryService } from '@/utils/searchHistoryService';
-import type { SearchHistory, SavedSearch, DateFilter, SearchResult, SearchSummaryData } from '@/types';
+import type { SearchHistory, SavedSearch, DateFilter, SearchResult, SearchSummaryData, MetadataFilters, FilterOptions } from '@/types';
 import SearchResultCard from '@/components/SearchResultCard.vue';
 import PerformanceIndicator from '@/components/PerformanceIndicator.vue';
 import SearchDebugPanel from '@/components/SearchDebugPanel.vue';
+import MultiSelect from 'primevue/multiselect';
 import { logger, logImport, logUI, startTimer } from '@/utils/logger';
 import { appealImportService } from '@/services/AppealImportService';
 import { authService } from '@/services/AuthenticationService.js';
@@ -679,6 +822,36 @@ const dateFilter = ref<DateFilter>({
   type: 'all'
 });
 
+// AIDEV-NOTE: Advanced metadata filtering state
+const metadataFilters = ref<MetadataFilters>({
+  lpaNames: [],
+  caseTypes: [],
+  caseOfficers: [],
+  procedures: [],
+  statuses: [],
+  dateFilters: {
+    startDate: { enabled: false },
+    questionnaireDue: { enabled: false },
+    statementDue: { enabled: false },
+    interestedPartyCommentsDue: { enabled: false },
+    finalCommentsDue: { enabled: false },
+    inquiryEvidenceDue: { enabled: false },
+    eventDate: { enabled: false }
+  },
+  decisionOutcomes: [],
+  hasLinkedCases: undefined
+});
+
+const showAdvancedFilters = ref(false);
+const filterOptions = ref<FilterOptions>({
+  lpaNames: [],
+  caseTypes: [],
+  caseOfficers: [],
+  procedures: [],
+  statuses: [],
+  decisionOutcomes: []
+});
+
 // AIDEV-NOTE: Cold storage is the only storage mode
 
 // AIDEV-NOTE: Authentication state for cold storage access
@@ -704,6 +877,30 @@ const thresholdLabel = computed(() => {
   if (value <= 0.6) return 'Balanced';
   if (value <= 0.8) return 'Sensitive';
   return 'Very Sensitive';
+});
+
+// AIDEV-NOTE: Count active metadata filters
+const activeFilterCount = computed(() => {
+  let count = 0;
+  const filters = metadataFilters.value;
+  
+  // Count array filters that have selections
+  if (filters.lpaNames.length > 0) count++;
+  if (filters.caseTypes.length > 0) count++;
+  if (filters.caseOfficers.length > 0) count++;
+  if (filters.procedures.length > 0) count++;
+  if (filters.statuses.length > 0) count++;
+  if (filters.decisionOutcomes.length > 0) count++;
+  
+  // Count date filters that are enabled
+  Object.values(filters.dateFilters).forEach(dateFilter => {
+    if (dateFilter.enabled) count++;
+  });
+  
+  // Count linked cases filter if set
+  if (filters.hasLinkedCases !== undefined) count++;
+  
+  return count;
 });
 
 // AIDEV-NOTE: Computed property for comprehensive search summary statistics - use filtered results for accurate counts
@@ -885,6 +1082,9 @@ async function performSearch() {
   // AIDEV-NOTE: expandedResults now handled by individual SearchResultCard components
   // AIDEV-NOTE: Clear hidden documents for new search
   hiddenDocuments.value.clear();
+  
+  // AIDEV-NOTE: Reset metadata filters for new search
+  resetMetadataFilters();
 
   try {
     // AIDEV-NOTE: Use store for unified search across cold storage
@@ -913,6 +1113,9 @@ async function performSearch() {
       // Get results from store
       results.value = store.allSearchResults.value;
       searchTime.value = store.state.search.performance.totalSearchTime;
+      
+      // AIDEV-NOTE: Update filter options from search results
+      filterOptions.value = extractFilterOptions(results.value);
       
       console.log(`Store search returned ${results.value.length} results in ${searchTime.value}ms`);
     } catch (storeSearchError) {
@@ -1140,9 +1343,88 @@ function hideDocument(docId: string) {
   }
 }
 
-// AIDEV-NOTE: Filter out hidden documents from displayed results
+// AIDEV-NOTE: Filter out hidden documents and apply metadata filters
 const filteredResults = computed(() => {
-  return results.value.filter(result => !hiddenDocuments.value.has(result.document.id));
+  let filtered = results.value.filter(result => !hiddenDocuments.value.has(result.document.id));
+  
+  // Apply metadata filters
+  const filters = metadataFilters.value;
+  
+  filtered = filtered.filter(result => {
+    const metadata = result.document.metadata || {};
+    
+    // Helper function to get metadata value
+    const getMetadataValue = (field: string): string => {
+      const value = (metadata as any)?.[field];
+      if (value === undefined || value === null || value === '' || value === 'NOT_FOUND') {
+        return 'NOT_FOUND';
+      }
+      return String(value);
+    };
+    
+    // LPA Names filter
+    if (filters.lpaNames.length > 0) {
+      const lpaName = getMetadataValue('lpa_name');
+      if (lpaName === 'NOT_FOUND' || !filters.lpaNames.includes(lpaName)) {
+        return false;
+      }
+    }
+    
+    // Case Types filter
+    if (filters.caseTypes.length > 0) {
+      const caseType = getMetadataValue('case_type');
+      if (caseType === 'NOT_FOUND' || !filters.caseTypes.includes(caseType)) {
+        return false;
+      }
+    }
+    
+    // Case Officers filter
+    if (filters.caseOfficers.length > 0) {
+      const caseOfficer = getMetadataValue('case_officer');
+      if (caseOfficer === 'NOT_FOUND' || !filters.caseOfficers.includes(caseOfficer)) {
+        return false;
+      }
+    }
+    
+    // Procedures filter
+    if (filters.procedures.length > 0) {
+      const procedure = getMetadataValue('procedure');
+      if (procedure === 'NOT_FOUND' || !filters.procedures.includes(procedure)) {
+        return false;
+      }
+    }
+    
+    // Statuses filter
+    if (filters.statuses.length > 0) {
+      const status = getMetadataValue('status');
+      if (status === 'NOT_FOUND' || !filters.statuses.includes(status)) {
+        return false;
+      }
+    }
+    
+    // Decision Outcomes filter
+    if (filters.decisionOutcomes.length > 0) {
+      const decisionOutcome = getMetadataValue('decision_outcome');
+      if (decisionOutcome === 'NOT_FOUND' || !filters.decisionOutcomes.includes(decisionOutcome)) {
+        return false;
+      }
+    }
+    
+    // Linked Cases filter
+    if (filters.hasLinkedCases !== undefined) {
+      const linkedCaseCount = getMetadataValue('linked_case_count');
+      const hasLinkedCases = linkedCaseCount !== 'NOT_FOUND' && parseInt(linkedCaseCount) > 0;
+      if (hasLinkedCases !== filters.hasLinkedCases) {
+        return false;
+      }
+    }
+    
+    // TODO: Add date range filtering for the dateFilters when implemented
+    
+    return true;
+  });
+  
+  return filtered;
 });
 
 // Pagination computed properties
@@ -1168,6 +1450,73 @@ function clearError() {
 function getPercentage(value: number, total: number): string {
   if (total === 0) return '0';
   return ((value / total) * 100).toFixed(1);
+}
+
+// AIDEV-NOTE: Extract unique values from search results for filter dropdowns
+function extractFilterOptions(searchResults: SearchResult[]): FilterOptions {
+  const sets = {
+    lpaNames: new Set<string>(),
+    caseTypes: new Set<string>(),
+    caseOfficers: new Set<string>(),
+    procedures: new Set<string>(),
+    statuses: new Set<string>(),
+    decisionOutcomes: new Set<string>()
+  };
+
+  searchResults.forEach(result => {
+    const metadata = result.document.metadata as any || {};
+    
+    // Extract and add non-empty values
+    const addValue = (set: Set<string>, value: any) => {
+      if (value && value !== 'NOT_FOUND' && typeof value === 'string' && value.trim() !== '') {
+        set.add(value.trim());
+      }
+    };
+
+    addValue(sets.lpaNames, metadata.lpa_name);
+    addValue(sets.caseTypes, metadata.case_type);
+    addValue(sets.caseOfficers, metadata.case_officer);
+    addValue(sets.procedures, metadata.procedure);
+    addValue(sets.statuses, metadata.status);
+    addValue(sets.decisionOutcomes, metadata.decision_outcome);
+  });
+
+  // Convert Sets to sorted arrays
+  return {
+    lpaNames: Array.from(sets.lpaNames).sort(),
+    caseTypes: Array.from(sets.caseTypes).sort(),
+    caseOfficers: Array.from(sets.caseOfficers).sort(),
+    procedures: Array.from(sets.procedures).sort(),
+    statuses: Array.from(sets.statuses).sort(),
+    decisionOutcomes: Array.from(sets.decisionOutcomes).sort()
+  };
+}
+
+// AIDEV-NOTE: Reset metadata filters to initial state
+function resetMetadataFilters() {
+  metadataFilters.value = {
+    lpaNames: [],
+    caseTypes: [],
+    caseOfficers: [],
+    procedures: [],
+    statuses: [],
+    dateFilters: {
+      startDate: { enabled: false },
+      questionnaireDue: { enabled: false },
+      statementDue: { enabled: false },
+      interestedPartyCommentsDue: { enabled: false },
+      finalCommentsDue: { enabled: false },
+      inquiryEvidenceDue: { enabled: false },
+      eventDate: { enabled: false }
+    },
+    decisionOutcomes: [],
+    hasLinkedCases: undefined
+  };
+}
+
+// AIDEV-NOTE: Clear all metadata filters
+function clearAllFilters() {
+  resetMetadataFilters();
 }
 
 // AIDEV-NOTE: Authentication handling for cold storage
@@ -1230,39 +1579,42 @@ function trackSearchInDebugPanel() {
 </script>
 
 <style scoped>
-/* AIDEV-NOTE: Custom dark theme slider styling with blue/cyan color scheme */
+/* AIDEV-NOTE: Simplified component-specific styles using theme variables */
+/* Complex PrimeVue overrides moved to centralized theme system */
+
+/* Custom range slider styling for search sensitivity */
 .slider-dark::-webkit-slider-thumb {
   appearance: none;
   height: 24px;
   width: 24px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  border: 2px solid #374151;
+  box-shadow: var(--shadow-md);
+  border: 2px solid var(--color-border-primary);
 }
 
 .slider-dark::-moz-range-thumb {
   height: 24px;
   width: 24px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
   cursor: pointer;
-  border: 2px solid #374151;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  border: 2px solid var(--color-border-primary);
+  box-shadow: var(--shadow-md);
 }
 
 .slider-dark::-webkit-slider-track {
   height: 12px;
   border-radius: 6px;
-  background: linear-gradient(to right, #10b981, #f59e0b, #ef4444);
-  border: 1px solid #4b5563;
+  background: linear-gradient(to right, var(--color-success), var(--color-warning), var(--color-error));
+  border: 1px solid var(--color-border-secondary);
 }
 
 .slider-dark::-moz-range-track {
   height: 12px;
   border-radius: 6px;
-  background: linear-gradient(to right, #10b981, #f59e0b, #ef4444);
-  border: 1px solid #4b5563;
+  background: linear-gradient(to right, var(--color-success), var(--color-warning), var(--color-error));
+  border: 1px solid var(--color-border-secondary);
 }
 </style>

@@ -4,6 +4,12 @@ import App from './App.vue';
 import UnifiedSearchView from './views/UnifiedSearchView.vue';
 import './style.css';
 
+// AIDEV-NOTE: PrimeVue setup for enhanced UI components
+import PrimeVue from 'primevue/config';
+import Aura from '@primevue/themes/aura';
+import StyleClass from 'primevue/styleclass';
+
+
 // Import worker preload module to ensure workers are included in build
 import './workers/index';
 
@@ -33,28 +39,43 @@ const app = createApp(App);
 async function initializeApplication() {
   try {
     console.log('[Main] Initializing application with service provider...');
-    
+
     // Initialize service provider with current configuration
     await serviceProvider.initialize();
-    
+
     // Make service provider globally accessible for debugging
     if (typeof window !== 'undefined') {
       window.serviceProvider = serviceProvider;
     }
-    
+
     // Log current system status
     console.log('[Main] System status:', serviceProvider.getSystemStatus());
-    
+
+    // AIDEV-NOTE: Configure PrimeVue in unstyled mode for complete custom styling
+    app.use(PrimeVue, {
+      theme: {
+        preset: Aura,
+        options: {
+          prefix: 'p',
+          darkModeSelector: 'system',
+          cssLayer: false
+        }
+      }
+    });
+    app.directive('styleclass', StyleClass);
     app.use(router);
     app.mount('#app');
-    
+
     console.log('[Main] Application initialized successfully');
-    
+
   } catch (error) {
     console.error('[Main] Application initialization failed:', error);
-    
+
     // Fall back to basic initialization without new services
     console.warn('[Main] Falling back to legacy mode...');
+    app.use(PrimeVue, {
+      unstyled: true
+    });
     app.use(router);
     app.mount('#app');
   }

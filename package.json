@@ -29,6 +29,7 @@
   "description": "",
   "dependencies": {
     "@liuyoshio/mcp-compass": "^1.0.7",
+    "@primevue/themes": "^4.3.6",
     "@tailwindcss/postcss": "^4.1.10",
     "@types/pdf-parse": "^1.1.5",
     "@vitejs/plugin-vue": "^6.0.0",
@@ -43,6 +44,7 @@
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^4.10.38",
     "postcss": "^8.5.6",
+    "primevue": "^4.3.6",
     "sql.js": "^1.13.0",
     "tailwindcss": "^4.1.10",
     "typescript": "^5.8.3",
