@@ -1,0 +1,2 @@
+# This file ensures the raw directory exists in git
+# Raw batch files are excluded from git via .gitignore
