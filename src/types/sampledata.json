@@ -1,0 +1,21 @@
+{
+    "doc_link_span": "https://www.gov.uk/government/organisations/planning-inspectorate",
+    "content": "Planning Appeal Case Details",
+    "case_type": "Planning Appeal",
+    "case_id": "APP/A1234/A/21/1234567",
+    "start_date": "2021-01-01",
+    "lpa_name": "Example Local Planning Authority",
+    "questionnaire_due": "2021-01-15",
+    "statement_due": "2021-02-01",
+    "case_officer": "John Doe",
+    "interested_party_comments_due": "2021-02-15",
+    "procedure": "Written Representations",
+    "final_comments_due": "2021-03-01",
+    "status": "In Progress",
+    "inquiry_evidence_due": "2021-03-15",
+    "decision_outcome": "Pending",
+    "event_date": "2021-04-01",
+    "link_status": "Linked",
+    "decision_date": "2021-04-15",
+    "linked_case_count": 2
+}

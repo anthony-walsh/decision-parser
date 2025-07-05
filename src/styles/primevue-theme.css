@@ -1,0 +1,241 @@
+/* AIDEV-NOTE: PrimeVue component theming using CSS custom properties */
+/* This provides proper dark theme styling without :deep selectors */
+
+/* MultiSelect Component - The main problematic component */
+.p-multiselect {
+  background: var(--input-background) !important;
+  border: 1px solid var(--input-border) !important;
+  border-radius: var(--border-radius-md) !important;
+  color: var(--input-text) !important;
+  font-size: var(--font-size-xs) !important;
+}
+
+.p-multiselect:not(.p-disabled):hover {
+  border-color: var(--color-border-tertiary) !important;
+}
+
+.p-multiselect:not(.p-disabled).p-focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+.p-multiselect-label {
+  color: var(--input-text) !important;
+  font-size: var(--font-size-xs) !important;
+  padding: 0.375rem 0.75rem !important;
+}
+
+.p-multiselect-label.p-placeholder {
+  color: var(--input-placeholder) !important;
+}
+
+.p-multiselect-token {
+  background: var(--color-primary-active) !important;
+  color: var(--color-text-primary) !important;
+  border-radius: var(--border-radius-sm) !important;
+  font-size: var(--font-size-xs) !important;
+  padding: 0.125rem 0.375rem !important;
+  margin: 0.125rem 0.25rem 0.125rem 0 !important;
+}
+
+.p-multiselect-token-icon {
+  color: var(--color-text-primary) !important;
+  margin-left: 0.25rem !important;
+}
+
+.p-multiselect-trigger {
+  color: var(--color-text-tertiary) !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* Dropdown Panel - Critical for fixing transparency issues */
+.p-multiselect-panel {
+  background: var(--dropdown-background) !important;
+  background-color: var(--dropdown-background) !important;
+  opacity: 1 !important;
+  border: 1px solid var(--dropdown-border) !important;
+  border-radius: var(--border-radius-md) !important;
+  box-shadow: var(--shadow-xl) !important;
+  z-index: 1000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.p-multiselect-header {
+  background: var(--dropdown-background) !important;
+  border-bottom: 1px solid var(--dropdown-border) !important;
+  padding: 0.75rem !important;
+}
+
+.p-multiselect-filter-container {
+  position: relative !important;
+}
+
+.p-multiselect-filter {
+  background: var(--input-background) !important;
+  border: 1px solid var(--input-border) !important;
+  border-radius: var(--border-radius-sm) !important;
+  color: var(--input-text) !important;
+  font-size: var(--font-size-xs) !important;
+  padding: 0.375rem 0.75rem !important;
+  width: 100% !important;
+}
+
+.p-multiselect-filter::placeholder {
+  color: var(--input-placeholder) !important;
+}
+
+.p-multiselect-filter:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+  outline: none !important;
+}
+
+.p-multiselect-items {
+  padding: 0.25rem !important;
+  background: var(--dropdown-background) !important;
+}
+
+.p-multiselect-item {
+  background: transparent !important;
+  border: none !important;
+  border-radius: var(--border-radius-sm) !important;
+  color: var(--dropdown-text) !important;
+  font-size: var(--font-size-xs) !important;
+  margin: 0.125rem 0 !important;
+  padding: 0.375rem 0.75rem !important;
+  transition: background-color 0.15s ease-in-out !important;
+  cursor: pointer !important;
+}
+
+.p-multiselect-item:hover {
+  background: var(--dropdown-item-hover) !important;
+  color: var(--dropdown-text) !important;
+}
+
+.p-multiselect-item.p-highlight {
+  background: var(--dropdown-item-active) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.p-multiselect-item.p-focus {
+  background: var(--dropdown-item-hover) !important;
+  color: var(--dropdown-text) !important;
+}
+
+.p-multiselect-close {
+  color: var(--color-text-tertiary) !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0.25rem !important;
+}
+
+.p-multiselect-close:hover {
+  color: var(--color-text-primary) !important;
+  background: var(--dropdown-item-hover) !important;
+}
+
+.p-multiselect-empty-message {
+  color: var(--color-text-tertiary) !important;
+  font-size: var(--font-size-xs) !important;
+  padding: 0.75rem !important;
+  text-align: center !important;
+}
+
+.p-multiselect-token-label {
+  color: var(--color-text-primary) !important;
+}
+
+/* Other PrimeVue Components */
+.p-checkbox .p-checkbox-box {
+  background: var(--input-background) !important;
+  border: 1px solid var(--input-border) !important;
+}
+
+.p-checkbox:not(.p-checkbox-disabled) .p-checkbox-box:hover {
+  border-color: var(--color-primary) !important;
+}
+
+.p-checkbox:not(.p-checkbox-disabled) .p-checkbox-box.p-highlight {
+  background: var(--color-primary-active) !important;
+  border-color: var(--color-primary-active) !important;
+}
+
+/* Button Components */
+.p-button {
+  border-radius: var(--border-radius-md) !important;
+  font-size: var(--font-size-sm) !important;
+  font-weight: 500 !important;
+  transition: all 0.15s ease-in-out !important;
+}
+
+.p-button.p-button-primary {
+  background: var(--button-primary) !important;
+  border-color: var(--button-primary) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.p-button.p-button-primary:hover {
+  background: var(--button-primary-hover) !important;
+  border-color: var(--button-primary-hover) !important;
+}
+
+.p-button.p-button-secondary {
+  background: var(--button-secondary) !important;
+  border-color: var(--button-secondary) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.p-button.p-button-secondary:hover {
+  background: var(--button-secondary-hover) !important;
+  border-color: var(--button-secondary-hover) !important;
+}
+
+/* Input Components */
+.p-inputtext {
+  background: var(--input-background) !important;
+  border: 1px solid var(--input-border) !important;
+  border-radius: var(--border-radius-md) !important;
+  color: var(--input-text) !important;
+  font-size: var(--font-size-sm) !important;
+  padding: 0.5rem 0.75rem !important;
+}
+
+.p-inputtext:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+.p-inputtext::placeholder {
+  color: var(--input-placeholder) !important;
+}
+
+/* Dropdown Component */
+.p-dropdown {
+  background: var(--input-background) !important;
+  border: 1px solid var(--input-border) !important;
+  border-radius: var(--border-radius-md) !important;
+  color: var(--input-text) !important;
+}
+
+.p-dropdown-panel {
+  background: var(--dropdown-background) !important;
+  border: 1px solid var(--dropdown-border) !important;
+  border-radius: var(--border-radius-md) !important;
+  box-shadow: var(--shadow-xl) !important;
+}
+
+.p-dropdown-item {
+  color: var(--dropdown-text) !important;
+  padding: 0.5rem 0.75rem !important;
+}
+
+.p-dropdown-item:hover {
+  background: var(--dropdown-item-hover) !important;
+}
+
+.p-dropdown-item.p-highlight {
+  background: var(--dropdown-item-active) !important;
+  color: var(--color-text-primary) !important;
+}

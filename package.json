@@ -5,8 +5,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
-    "deploy": "npm run build && gh-pages -d dist",
-    "preview": "vite preview"
+    "build:validate": "npm run build && node scripts/build-validation.js",
+    "deploy": "npm run build:validate && gh-pages -d dist",
+    "preview": "vite preview",
+    "validate": "node scripts/build-validation.js",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest --watch"
   },
   "repository": {
     "type": "git",
@@ -21,21 +28,37 @@
   "homepage": "https://anthony-walsh.github.io/decision-parser",
   "description": "",
   "dependencies": {
+    "@liuyoshio/mcp-compass": "^1.0.7",
+    "@primevue/themes": "^4.3.6",
     "@tailwindcss/postcss": "^4.1.10",
     "@types/pdf-parse": "^1.1.5",
     "@vitejs/plugin-vue": "^6.0.0",
+    "absurd-sql": "^0.0.54",
     "autoprefixer": "^10.4.21",
-    "dexie": "^4.0.11",
+    "axios": "^1.10.0",
+    "cheerio": "^1.1.0",
+    "duckduckgo-mcp-server": "^0.1.2",
     "fuzzysort": "^3.1.0",
     "gh-pages": "^6.3.0",
+    "memory-bank-mcp": "^1.0.0",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^4.10.38",
     "postcss": "^8.5.6",
+    "primevue": "^4.3.6",
+    "sql.js": "^1.13.0",
     "tailwindcss": "^4.1.10",
     "typescript": "^5.8.3",
     "vite": "^7.0.0",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1",
     "vue-tsc": "^2.2.10"
+  },
+  "devDependencies": {
+    "@vitest/ui": "^3.2.4",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^18.0.1",
+    "jsdom": "^26.1.0",
+    "terser": "^5.43.1",
+    "vitest": "^3.2.4"
   }
 }
