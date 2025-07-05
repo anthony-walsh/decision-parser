@@ -110,9 +110,9 @@ export class WebScraper implements IWebScraper {
       const pdfLinks = decisionLinkSpan.find('a').toArray();
 
       return pdfLinks
-        .map(link => $(link).attr('href'))
-        .filter(href => href && href.trim())
-        .map(href => `https://acp.planninginspectorate.gov.uk/${href}`);
+        .map((link: any) => $(link).attr('href'))
+        .filter((href: string | undefined) => href && href.trim())
+        .map((href: string) => `https://acp.planninginspectorate.gov.uk/${href}`);
     } catch (error) {
       console.warn(`[WebScraper] Failed to extract PDF URLs: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return [];

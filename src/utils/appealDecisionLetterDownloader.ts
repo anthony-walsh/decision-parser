@@ -85,7 +85,7 @@ class AppealDecisionLetterDownloader {
 
     // AIDEV-NOTE: Add request interceptor to enforce HTTPS in production
     if (envConfig.enforceHttps) {
-      this.axiosClient.interceptors.request.use((config) => {
+      this.axiosClient.interceptors.request.use((config: any) => {
         if (config.url && config.url.startsWith('http://')) {
           console.warn('[SECURITY] Converting HTTP to HTTPS:', config.url);
           config.url = config.url.replace('http://', 'https://');

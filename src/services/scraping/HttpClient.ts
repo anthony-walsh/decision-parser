@@ -38,7 +38,7 @@ export class HttpClient implements IHttpClient {
 
     // AIDEV-NOTE: Security enhancement - enforce HTTPS in production
     if (envConfig.enforceHttps) {
-      this.axiosClient.interceptors.request.use((config) => {
+      this.axiosClient.interceptors.request.use((config: AxiosRequestConfig) => {
         if (config.url && config.url.startsWith('http://')) {
           console.warn('[HttpClient][SECURITY] Converting HTTP to HTTPS:', config.url);
           config.url = config.url.replace('http://', 'https://');
