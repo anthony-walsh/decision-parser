@@ -199,10 +199,10 @@ export const COLD_STORAGE_VALIDATION_RULES: ValidationRule[] = [
     name: 'id_metadata_consistency',
     severity: 'error',
     check: (doc: ColdStorageDocument) => {
-      if (!doc.id || !doc.metadata?.case_id) return true;
-      return doc.id === doc.metadata.case_id;
+      if (!doc.id || !doc.case_id) return true;
+      return doc.id === doc.case_id;
     },
-    message: 'Document ID must match metadata case_id',
+    message: 'Document ID must match case_id',
     suggestion: 'Ensure consistent ID mapping during transformation'
   },
   
@@ -218,12 +218,12 @@ export const COLD_STORAGE_VALIDATION_RULES: ValidationRule[] = [
     suggestion: 'Use sanitized case_id + .pdf extension'
   },
   
-  // Metadata completeness
+  // Case ID completeness (at root level)
   {
-    name: 'metadata_case_id',
+    name: 'case_id_required',
     severity: 'error',
-    check: (doc: ColdStorageDocument) => !!doc.metadata?.case_id,
-    message: 'Metadata must include case_id',
+    check: (doc: ColdStorageDocument) => !!doc.case_id,
+    message: 'Document must include case_id at root level',
     suggestion: 'case_id is required for document identification'
   },
   {

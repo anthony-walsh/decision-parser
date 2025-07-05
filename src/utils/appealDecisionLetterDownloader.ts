@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import * as cheerio from 'cheerio';
+import { getEnvironmentConfig } from './environment.js';
 
 // AIDEV-NOTE: Interface matching sampledata.json structure for appeal case data
 interface AppealCaseData {
@@ -73,13 +74,25 @@ class AppealDecisionLetterDownloader {
       ...config
     };
 
-    // AIDEV-NOTE: Axios setup for browser environment (no connection pooling)
+    // AIDEV-NOTE: Security-enhanced Axios setup with HTTPS enforcement
+    const envConfig = getEnvironmentConfig();
     this.axiosClient = axios.create({
       timeout: this.config.timeoutMs,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       }
     });
+
+    // AIDEV-NOTE: Add request interceptor to enforce HTTPS in production
+    if (envConfig.enforceHttps) {
+      this.axiosClient.interceptors.request.use((config) => {
+        if (config.url && config.url.startsWith('http://')) {
+          console.warn('[SECURITY] Converting HTTP to HTTPS:', config.url);
+          config.url = config.url.replace('http://', 'https://');
+        }
+        return config;
+      });
+    }
 
     this.progress = {
       totalCases: 0,
@@ -109,7 +122,7 @@ class AppealDecisionLetterDownloader {
     return this.coldStorageMode && !!this.transformAndStoreCallback;
   }
 
-  // AIDEV-NOTE: Initialize PDF.js using same pattern as pdfProcessor.ts
+  // AIDEV-NOTE: Initialize PDF.js with secure, configurable worker URL
   private async initializePdfJs(): Promise<void> {
     if (!this.pdfjsLib) {
       try {
@@ -119,11 +132,17 @@ class AppealDecisionLetterDownloader {
           this.pdfjsLib = await import('pdfjs-dist');
         }
 
+        // AIDEV-NOTE: Security improvement - use environment-configured worker URL
+        const config = getEnvironmentConfig();
+        const workerUrl = config.pdfWorkerUrl;
+
         if (this.pdfjsLib.GlobalWorkerOptions) {
-          this.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs`;
+          this.pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
         } else if (this.pdfjsLib.default && this.pdfjsLib.default.GlobalWorkerOptions) {
-          this.pdfjsLib.default.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs`;
+          this.pdfjsLib.default.GlobalWorkerOptions.workerSrc = workerUrl;
         }
+        
+        console.log('[PDF.js] Worker configured with URL:', workerUrl);
       } catch (error) {
         console.error('Failed to initialize PDF.js:', error);
         throw error;

@@ -89,15 +89,20 @@
     <div class="flex justify-center gap-2">
       <button
         @click="$emit('view-document', result.document)"
-        class="px-3 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg text-xs hover:from-blue-600 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium shadow-md hover:shadow-lg"
-        :aria-label="`View document ${result.document.filename}`"
+        :disabled="isOpeningDocument"
+        class="px-3 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg text-xs hover:from-blue-600 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all font-medium shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+        :aria-label="`View document ${result.document?.filename || 'Unknown Document'}`"
       >
-        View Online
+        <svg v-if="isOpeningDocument" class="animate-spin -ml-1 mr-2 h-3 w-3 text-white inline" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        {{ isOpeningDocument ? 'Opening...' : 'View Online' }}
       </button>
       <button
         @click="$emit('hide-document', result.document.id)"
         class="px-3 py-2 bg-gray-700 text-gray-300 rounded-lg text-xs hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all border border-gray-600 shadow-md hover:shadow-lg"
-        :aria-label="`Hide document ${result.document.filename}`"
+        :aria-label="`Hide document ${result.document?.filename || 'Unknown Document'}`"
       >
         Hide
       </button>
@@ -123,6 +128,7 @@ interface Props {
   searchQuery: string;
   maxVisibleMatches?: number;
   showPerformanceInfo?: boolean;
+  openingDocument?: string | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -142,10 +148,20 @@ const isExpanded = ref(false);
 
 // Computed properties
 const displayFilename = computed(() => {
+  // AIDEV-NOTE: Defensive null checks to prevent crashes
+  if (!props.result?.document?.filename) {
+    console.warn('[SearchResultCard] Missing filename in result:', props.result);
+    return 'Unknown Document';
+  }
   return props.result.document.filename.replace('.pdf', '');
 });
 
 const metadata = computed(() => {
+  // AIDEV-NOTE: Defensive programming - handle missing document structure
+  if (!props.result?.document) {
+    console.warn('[SearchResultCard] Missing document structure in result:', props.result);
+    return {};
+  }
   return props.result.document.metadata || {};
 });
 
@@ -157,10 +173,29 @@ const expandedMatches = computed(() => {
   return props.result.matches.slice(props.maxVisibleMatches);
 });
 
+const isOpeningDocument = computed(() => {
+  const documentId = props.result.document?.id || props.result.id;
+  return props.openingDocument === documentId;
+});
+
 
 // Helper functions
 function getMetadataValue(field: string): string {
-  const value = (metadata.value as any)?.[field];
+  // AIDEV-NOTE: Check both nested metadata and root-level document fields for compatibility
+  // First try nested metadata format (document.metadata.field)
+  let value = (metadata.value as any)?.[field];
+  
+  // If not found in nested metadata, try root-level document field
+  if ((value === undefined || value === null || value === '' || value === 'NOT_FOUND') && props.result?.document) {
+    value = (props.result.document as any)?.[field];
+  }
+  
+  // AIDEV-NOTE: For cold storage results, also check the root level of the result object
+  // Cold storage passes fields directly on the result object
+  if ((value === undefined || value === null || value === '' || value === 'NOT_FOUND') && props.result) {
+    value = (props.result as any)?.[field];
+  }
+  
   if (value === undefined || value === null || value === '' || value === 'NOT_FOUND') {
     return 'NOT_FOUND';
   }

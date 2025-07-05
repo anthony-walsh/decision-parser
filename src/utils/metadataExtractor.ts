@@ -1,6 +1,11 @@
 // AIDEV-NOTE: Planning appeal decision metadata extraction utility
 // Extracts specific metadata fields from UK Planning Inspectorate appeal decisions
 
+import { createSecureLogger } from './environment.js';
+
+// AIDEV-NOTE: Secure logger that respects production environment
+const logger = createSecureLogger('MetadataExtractor');
+
 export interface ExtractedMetadata {
   appealReferenceNumber: string;
   siteVisitDate: string;
@@ -32,14 +37,12 @@ export function extractPlanningAppealMetadata(text: string): ExtractedMetadata {
   // Most metadata is in the first 1000-1500 characters
   const headerSection = text.substring(0, 1500);
   
-  // Debug logging to understand actual text format
+  // AIDEV-NOTE: Secure debug logging - sensitive content hidden in production
   if (text.length > 100) { // Only log for substantial text
-    console.log('=== METADATA EXTRACTION DEBUG ===');
-    console.log('Original text length:', text.length);
-    console.log('Header section (first 1000 chars):');
-    console.log(headerSection.substring(0, 1000));
-    console.log('\n--- Line breaks preserved ---');
-    console.log(headerSection.substring(0, 1000).replace(/\n/g, '\\n'));
+    logger.debug('=== METADATA EXTRACTION DEBUG ===');
+    logger.debug('Original text length:', text.length);
+    logger.sensitive('Header section (first 1000 chars):', headerSection.substring(0, 1000));
+    logger.sensitive('Line breaks preserved:', headerSection.substring(0, 1000).replace(/\n/g, '\\n'));
   }
 
   // Preserve original text with line breaks for line-dependent patterns
@@ -49,8 +52,7 @@ export function extractPlanningAppealMetadata(text: string): ExtractedMetadata {
   const cleanText = headerSection.replace(/\s+/g, ' ').trim();
 
   if (text.length > 100) {
-    console.log('\n--- After cleaning (first 300 chars) ---');
-    console.log(cleanText.substring(0, 300));
+    logger.sensitive('After cleaning (first 300 chars):', cleanText.substring(0, 300));
   }
 
   // Extract each metadata field using both original and cleaned text
@@ -62,14 +64,14 @@ export function extractPlanningAppealMetadata(text: string): ExtractedMetadata {
   metadata.decisionOutcome = extractDecisionOutcome(originalText, cleanText);
 
   if (text.length > 100) {
-    console.log('\n--- Extraction Results ---');
-    console.log('Appeal Reference:', metadata.appealReferenceNumber);
-    console.log('Site Visit Date:', metadata.siteVisitDate);
-    console.log('Decision Date:', metadata.decisionDate);
-    console.log('LPA:', metadata.lpa);
-    console.log('Inspector:', metadata.inspector);
-    console.log('Decision Outcome:', metadata.decisionOutcome);
-    console.log('=== END DEBUG ===\n');
+    logger.debug('--- Extraction Results ---');
+    logger.debug('Appeal Reference:', metadata.appealReferenceNumber);
+    logger.debug('Site Visit Date:', metadata.siteVisitDate);
+    logger.debug('Decision Date:', metadata.decisionDate);
+    logger.debug('LPA:', metadata.lpa);
+    logger.debug('Inspector:', metadata.inspector);
+    logger.debug('Decision Outcome:', metadata.decisionOutcome);
+    logger.debug('=== END DEBUG ===');
   }
 
   return metadata;
@@ -101,7 +103,7 @@ function extractAppealReference(originalText: string, cleanText: string): string
         
         // Validate that it ends with exactly 7 digits and has the right structure
         if (/\d{7}$/.test(candidate) && candidate.includes('/')) {
-          console.log(`Found appeal reference: ${candidate}`);
+          logger.debug(`Found appeal reference: ${candidate}`);
           return candidate.toUpperCase();
         }
       }
@@ -130,7 +132,7 @@ function extractSiteVisitDate(originalText: string, cleanText: string): string {
       const match = textToSearch.match(pattern);
       if (match && match[1]) {
         let dateStr = match[1].trim();
-        console.log(`Found site visit date: ${dateStr}`);
+        logger.debug(`Found site visit date: ${dateStr}`);
         return parseAndNormalizeDate(dateStr);
       }
     }
@@ -160,7 +162,7 @@ function extractDecisionDate(originalText: string, cleanText: string): string {
         let dateStr = match[1].trim();
         // Remove any trailing period
         dateStr = dateStr.replace(/\.$/, '');
-        console.log(`Found decision date: ${dateStr}`);
+        logger.debug(`Found decision date: ${dateStr}`);
         return parseAndNormalizeDate(dateStr);
       }
     }
@@ -198,7 +200,7 @@ function extractLPA(originalText: string, cleanText: string): string {
         
         // Validate it looks like a council name
         if (lpa.length > 5 && !/^(decision|appeal|the\s)/i.test(lpa)) {
-          console.log(`Found LPA: ${lpa}`);
+          logger.debug(`Found LPA: ${lpa}`);
           return lpa;
         }
       }
@@ -236,7 +238,7 @@ function extractInspector(originalText: string, cleanText: string): string {
         
         // Validate it looks like a proper name
         if (inspector.length >= 3 && /^[A-Z]/.test(inspector) && inspector.includes(' ')) {
-          console.log(`Found inspector: ${inspector}`);
+          logger.debug(`Found inspector: ${inspector}`);
           return inspector;
         }
       }
@@ -268,11 +270,11 @@ function extractDecisionOutcome(originalText: string, cleanText: string): 'Dismi
       if (match && match[1]) {
         const outcome = match[1].toLowerCase();
         if (outcome === 'dismissed') {
-          console.log('Found decision outcome: Dismissed');
+          logger.debug('Found decision outcome: Dismissed');
           return 'Dismissed';
         }
         if (outcome === 'allowed') {
-          console.log('Found decision outcome: Allowed');
+          logger.debug('Found decision outcome: Allowed');
           return 'Allowed';
         }
       }

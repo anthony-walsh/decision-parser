@@ -19,6 +19,17 @@ export interface Document {
     inspector?: string;
     decisionOutcome?: 'Dismissed' | 'Allowed' | 'NOT_FOUND';
   };
+  // AIDEV-NOTE: Cold storage documents may also have appeal fields at root level
+  // These are flattened during data transformation for compatibility with test batch format
+  case_type?: string;
+  case_id?: string;
+  lpa_name?: string;
+  decision_outcome?: string;
+  decision_date?: string;
+  case_officer?: string;
+  procedure?: string;
+  status?: string;
+  [key: string]: any; // Allow additional appeal fields at root level
 }
 
 export interface SearchIndex {
@@ -55,6 +66,7 @@ export interface SavedSearch {
 }
 
 export interface SearchResult {
+  id: string;
   document: Document;
   matches: Array<{
     content: string;
@@ -95,6 +107,8 @@ export interface DateFilter {
   type: 'all' | 'earlierThan' | 'laterThan' | 'range';
   earlierThan?: string; // ISO date string
   laterThan?: string; // ISO date string
+  from?: string; // ISO date string for range start
+  to?: string; // ISO date string for range end
 }
 
 export interface SearchSummaryData {
@@ -142,20 +156,8 @@ export interface MetadataFilters {
   procedures: string[];
   statuses: string[];
   
-  // Important Dates filters
-  dateFilters: {
-    startDate: DateRangeFilter;
-    questionnaireDue: DateRangeFilter;
-    statementDue: DateRangeFilter;
-    interestedPartyCommentsDue: DateRangeFilter;
-    finalCommentsDue: DateRangeFilter;
-    inquiryEvidenceDue: DateRangeFilter;
-    eventDate: DateRangeFilter;
-  };
-  
   // Decision Information filters
   decisionOutcomes: string[];
-  hasLinkedCases?: boolean; // null = no filter, true = has linked cases, false = no linked cases
 }
 
 export interface FilterOptions {

@@ -8,9 +8,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 // AIDEV-NOTE: Legacy imports disabled - services no longer exist after migration
 // import { HotStorageService } from '../../../src/services/HotStorageService.js'
-import { ColdStorageService } from '../../../src/services/ColdStorageService.js'
+import { ColdStorageService } from '../../../src/services/ColdStorageService.ts'
 // import { DocumentTierManager } from '../../../src/services/DocumentTierManager.js'
-import { EncryptionService } from '../../../src/services/EncryptionService.js'
+import { EncryptionService } from '../../../src/services/EncryptionService.ts'
 
 describe.skip('Storage Tiers Integration - DISABLED DURING MIGRATION', () => {
   let hotStorage

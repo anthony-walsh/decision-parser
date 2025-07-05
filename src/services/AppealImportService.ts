@@ -216,13 +216,12 @@ export class AppealImportService {
 
     try {
       if (this.coldStorageService && this.coldStorageService.isAuthenticated) {
-        // Use real cold storage service to add documents
-        for (const document of coldStorageBatch.documents) {
-          await this.coldStorageService.addDocument(document);
-        }
+        // Use real cold storage service to add batch
+        const result = await this.coldStorageService.addBatch(coldStorageBatch.documents);
         
         logColdStorage('Documents successfully stored in cold storage', {
-          documentCount: coldStorageBatch.documents.length,
+          batchId: result.batchId,
+          documentCount: result.documentCount,
           storageMode: 'real'
         }, 'AppealImportService');
       } else {

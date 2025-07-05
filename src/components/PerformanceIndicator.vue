@@ -178,9 +178,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { memoryManager } from '@/services/MemoryManager.js';
-import { performanceMonitor } from '@/services/PerformanceMonitor.js';
-import { browserResourceManager } from '@/utils/BrowserResourceManager.js';
+import { memoryManager } from '@/services/MemoryManager';
+import { performanceMonitor } from '@/services/PerformanceMonitor';
+import { browserResourceManager } from '@/utils/BrowserResourceManager';
 
 // Component state
 const isExpanded = ref(false);
@@ -287,11 +287,11 @@ function updatePerformanceData() {
   resourceStatus.value.wakeLock = resourceInfo.wakeLock?.isActive || false;
   resourceStatus.value.battery = resourceInfo.battery;
 
-  // Update recent alerts
-  const alerts = performanceMonitor.getRawMetrics('alerts', 5);
-  recentAlerts.value = alerts.filter(alert => 
+  // Update recent alerts from performance export data
+  const exportData = performanceMonitor.exportPerformanceData();
+  recentAlerts.value = exportData.alerts.filter(alert => 
     (Date.now() - alert.timestamp.getTime()) < 300000 // Last 5 minutes
-  );
+  ).slice(-5); // Get last 5 alerts
 }
 
 // AIDEV-NOTE: UI interaction methods

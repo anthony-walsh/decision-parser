@@ -7,9 +7,9 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { HotStorageService } from '../../../src/services/HotStorageService.js'
-import { ColdStorageService } from '../../../src/services/ColdStorageService.js'
+import { ColdStorageService } from '../../../src/services/ColdStorageService.ts'
 import { DocumentTierManager } from '../../../src/services/DocumentTierManager.js'
-import { MemoryManager } from '../../../src/services/MemoryManager.js'
+import { MemoryManager } from '../../../src/services/MemoryManager.ts'
 
 describe('Large Dataset Scale Testing', () => {
   let hotStorage

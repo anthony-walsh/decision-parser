@@ -6,9 +6,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { MemoryManager } from '../../../src/services/MemoryManager.js'
-import { ColdStorageService } from '../../../src/services/ColdStorageService.js'
-import { PerformanceMonitor } from '../../../src/services/PerformanceMonitor.js'
+import { MemoryManager } from '../../../src/services/MemoryManager.ts'
+import { ColdStorageService } from '../../../src/services/ColdStorageService.ts'
+import { PerformanceMonitor } from '../../../src/services/PerformanceMonitor.ts'
 
 describe('Memory Usage Validation', () => {
   let memoryManager

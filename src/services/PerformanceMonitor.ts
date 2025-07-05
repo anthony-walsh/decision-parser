@@ -5,8 +5,29 @@
  * and provides insights for optimization and user experience.
  */
 
-// AIDEV-NOTE: Performance monitoring configuration
-const PERFORMANCE_CONFIG = {
+// AIDEV-NOTE: Performance monitoring configuration with proper typing
+export interface PerformanceConfig {
+  // Metric collection settings
+  MAX_SAMPLES: number;           // Maximum samples to keep in memory
+  SAMPLING_INTERVAL: number;     // Background sampling interval (ms)
+  BATCH_SIZE: number;            // Samples to process in batch
+  
+  // Performance thresholds
+  SLOW_SEARCH_THRESHOLD: number; // Hot search slower than 2s is concerning
+  SLOW_COLD_THRESHOLD: number;   // Cold search slower than 10s is concerning
+  HIGH_MEMORY_THRESHOLD: number; // Memory usage above 200MB
+  LOW_FPS_THRESHOLD: number;     // FPS below 30 is poor
+  
+  // Alert configuration
+  CONSECUTIVE_SLOW_ALERTS: number; // Alert after 3 consecutive slow operations
+  ALERT_COOLDOWN: number;          // 30s cooldown between similar alerts
+  
+  // Metric retention
+  METRIC_RETENTION_HOURS: number; // Keep metrics for 24 hours
+  CLEANUP_INTERVAL: number;       // Cleanup old metrics every 5 minutes
+}
+
+export const PERFORMANCE_CONFIG: PerformanceConfig = {
   // Metric collection settings
   MAX_SAMPLES: 1000,           // Maximum samples to keep in memory
   SAMPLING_INTERVAL: 1000,     // Background sampling interval (ms)
@@ -27,58 +48,205 @@ const PERFORMANCE_CONFIG = {
   CLEANUP_INTERVAL: 300000     // Cleanup old metrics every 5 minutes
 };
 
-class PerformanceMonitor {
+// AIDEV-NOTE: Performance metric interfaces
+export interface BaseMetric {
+  id: string;
+  timestamp: Date;
+}
+
+export interface SearchMetric extends BaseMetric {
+  type: 'hot' | 'cold' | 'unified';
+  query: string;
+  duration: number;
+  resultCount: number;
+  metadata: {
+    sessionSearchCount: number;
+    [key: string]: any;
+  };
+}
+
+export interface StorageMetric extends BaseMetric {
+  operation: 'read' | 'write' | 'delete' | 'encrypt' | 'decrypt' | 'cleanup';
+  duration: number;
+  size: number;
+  metadata: {
+    [key: string]: any;
+  };
+}
+
+export interface MemoryMetric extends BaseMetric {
+  usage: number;
+  peak: number;
+}
+
+export interface FrameRateMetric extends BaseMetric {
+  frameRate: number;
+  target: number;
+}
+
+export interface CPUMetric extends BaseMetric {
+  usage: number;
+  category: 'low' | 'medium' | 'high';
+}
+
+export interface NetworkMetric extends BaseMetric {
+  url: string;
+  method: string;
+  duration: number;
+  size: number;
+  status: number;
+}
+
+export interface UserInteractionMetric extends BaseMetric {
+  type: string;
+  target: string;
+  processingTime: number;
+}
+
+export interface RenderingMetric extends BaseMetric {
+  type: 'navigation' | 'paint' | 'longtask';
+  name?: string;
+  duration?: number;
+  domContentLoaded?: number;
+  loadComplete?: number;
+  startTime?: number;
+}
+
+export interface PerformanceAlert extends BaseMetric {
+  type: string;
+  message: string;
+  metadata: {
+    [key: string]: any;
+  };
+  severity: 'info' | 'warning' | 'critical';
+}
+
+export interface CurrentSession {
+  startTime: Date;
+  searchCount: number;
+  hotSearchTime: number;
+  coldSearchTime: number;
+  memoryPeaks: number[];
+  errors: any[];
+}
+
+export interface AlertTracking {
+  history: PerformanceAlert[];
+  lastAlerts: Map<string, number>;
+  consecutiveSlowOps: number;
+}
+
+export interface MetricsStorage {
+  searchOperations: SearchMetric[];
+  memoryUsage: MemoryMetric[];
+  renderingPerformance: RenderingMetric[];
+  networkOperations: NetworkMetric[];
+  storageOperations: StorageMetric[];
+  userInteractions: UserInteractionMetric[];
+  frameRate: FrameRateMetric[];
+  cpuUsage: CPUMetric[];
+}
+
+export interface PerformanceObservers {
+  navigation: PerformanceObserver | null;
+  paint: PerformanceObserver | null;
+  resource: PerformanceObserver | null;
+  longtask: PerformanceObserver | null;
+}
+
+export interface PerformanceSummary {
+  timeframe: string;
+  searchPerformance: {
+    totalSearches: number;
+    avgHotSearchTime: number;
+    avgColdSearchTime: number;
+    slowSearches: number;
+  };
+  memoryUsage: {
+    current: number;
+    average: number;
+    peak: number;
+    highUsageEvents: number;
+  };
+  alerts: {
+    total: number;
+    critical: number;
+    warnings: number;
+    byType: Record<string, number>;
+  };
+  session: {
+    startTime: Date;
+    searchCount: number;
+    totalHotTime: number;
+    totalColdTime: number;
+    memoryPeak: number;
+  };
+}
+
+export type PerformanceEventListener = (type: string, data: any) => void;
+export type AlertEventListener = (alert: PerformanceAlert) => void;
+
+// AIDEV-NOTE: Extend global interfaces for browser performance APIs
+declare global {
+  interface Window {
+    memoryManager?: any;
+  }
+}
+
+export class PerformanceMonitor {
+  private isInitialized = false;
+  private isMonitoring = false;
+  private monitoringInterval: NodeJS.Timeout | null = null;
+  private cleanupInterval: NodeJS.Timeout | null = null;
+  
+  // Performance metrics storage with proper typing
+  private metrics: MetricsStorage = {
+    searchOperations: [],
+    memoryUsage: [],
+    renderingPerformance: [],
+    networkOperations: [],
+    storageOperations: [],
+    userInteractions: [],
+    frameRate: [],
+    cpuUsage: []
+  };
+  
+  // Real-time performance tracking
+  private currentSession: CurrentSession = {
+    startTime: new Date(),
+    searchCount: 0,
+    hotSearchTime: 0,
+    coldSearchTime: 0,
+    memoryPeaks: [],
+    errors: []
+  };
+  
+  // Performance alerts and warnings
+  private alerts: AlertTracking = {
+    history: [],
+    lastAlerts: new Map(),
+    consecutiveSlowOps: 0
+  };
+  
+  // Event listeners with proper typing
+  private performanceListeners = new Set<PerformanceEventListener>();
+  private alertListeners = new Set<AlertEventListener>();
+  
+  // Performance observers with proper typing
+  private observers: PerformanceObservers = {
+    navigation: null,
+    paint: null,
+    resource: null,
+    longtask: null
+  };
+  
   constructor() {
-    this.isInitialized = false;
-    this.isMonitoring = false;
-    this.monitoringInterval = null;
-    this.cleanupInterval = null;
-    
-    // Performance metrics storage
-    this.metrics = {
-      searchOperations: [],
-      memoryUsage: [],
-      renderingPerformance: [],
-      networkOperations: [],
-      storageOperations: [],
-      userInteractions: []
-    };
-    
-    // Real-time performance tracking
-    this.currentSession = {
-      startTime: new Date(),
-      searchCount: 0,
-      hotSearchTime: 0,
-      coldSearchTime: 0,
-      memoryPeaks: [],
-      errors: []
-    };
-    
-    // Performance alerts and warnings
-    this.alerts = {
-      history: [],
-      lastAlerts: new Map(), // Type -> timestamp mapping for cooldown
-      consecutiveSlowOps: 0
-    };
-    
-    // Event listeners
-    this.performanceListeners = new Set();
-    this.alertListeners = new Set();
-    
-    // Performance observers
-    this.observers = {
-      navigation: null,
-      paint: null,
-      resource: null,
-      longtask: null
-    };
-    
     // Auto-initialize
     this.initialize();
   }
 
   // AIDEV-NOTE: Initialize performance monitoring
-  async initialize() {
+  public async initialize(): Promise<void> {
     if (this.isInitialized) return;
     
     try {
@@ -107,13 +275,13 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Setup browser performance observers
-  setupPerformanceObservers() {
+  private setupPerformanceObservers(): void {
     try {
       // Navigation timing observer
       if ('PerformanceObserver' in window) {
         this.observers.navigation = new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
-            this.recordNavigationMetric(entry);
+            this.recordNavigationMetric(entry as PerformanceNavigationTiming);
           }
         });
         this.observers.navigation.observe({ entryTypes: ['navigation'] });
@@ -129,7 +297,7 @@ class PerformanceMonitor {
         // Resource timing observer
         this.observers.resource = new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
-            this.recordResourceMetric(entry);
+            this.recordResourceMetric(entry as PerformanceResourceTiming);
           }
         });
         this.observers.resource.observe({ entryTypes: ['resource'] });
@@ -151,29 +319,38 @@ class PerformanceMonitor {
     }
   }
 
+
   // AIDEV-NOTE: Setup user interaction performance tracking
-  setupUserInteractionTracking() {
+  private setupUserInteractionTracking(): void {
     const interactionEvents = ['click', 'keydown', 'scroll', 'touchstart'];
     
     interactionEvents.forEach(eventType => {
-      document.addEventListener(eventType, (event) => {
+      document.addEventListener(eventType, (event: Event) => {
         this.recordUserInteraction(eventType, event);
       }, { passive: true });
     });
   }
 
   // AIDEV-NOTE: Setup memory monitoring integration
-  setupMemoryMonitoring() {
+  private setupMemoryMonitoring(): void {
     // This will be integrated with MemoryManager
     if (window.memoryManager) {
-      window.memoryManager.onMemoryWarning((data) => {
+      window.memoryManager.onMemoryWarning((data: any) => {
         this.recordMemoryAlert(data);
       });
     }
   }
 
+  // AIDEV-NOTE: Record memory alert
+  private recordMemoryAlert(data: any): void {
+    this.recordAlert('memory_warning', `Memory warning: ${data.currentMemory}MB`, {
+      currentMemory: data.currentMemory,
+      threshold: data.threshold
+    });
+  }
+
   // AIDEV-NOTE: Start performance monitoring
-  startMonitoring() {
+  public startMonitoring(): void {
     if (this.isMonitoring) return;
     
     this.isMonitoring = true;
@@ -185,7 +362,7 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Stop performance monitoring
-  stopMonitoring() {
+  public stopMonitoring(): void {
     if (!this.isMonitoring) return;
     
     this.isMonitoring = false;
@@ -199,14 +376,14 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Start cleanup interval for old metrics
-  startCleanupInterval() {
+  private startCleanupInterval(): void {
     this.cleanupInterval = setInterval(() => {
       this.cleanupOldMetrics();
     }, PERFORMANCE_CONFIG.CLEANUP_INTERVAL);
   }
 
   // AIDEV-NOTE: Collect performance snapshot
-  collectPerformanceSnapshot() {
+  private collectPerformanceSnapshot(): void {
     const timestamp = new Date();
     
     // Memory usage (if available)
@@ -229,10 +406,16 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Record search operation performance
-  recordSearchOperation(type, query, duration, resultCount, metadata = {}) {
-    const metric = {
+  public recordSearchOperation(
+    type: 'hot' | 'cold' | 'unified', 
+    query: string, 
+    duration: number, 
+    resultCount: number, 
+    metadata: Record<string, any> = {}
+  ): void {
+    const metric: SearchMetric = {
       id: this.generateMetricId(),
-      type, // 'hot', 'cold', 'unified'
+      type,
       query,
       duration,
       resultCount,
@@ -261,10 +444,15 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Record storage operation performance
-  recordStorageOperation(operation, duration, size, metadata = {}) {
-    const metric = {
+  public recordStorageOperation(
+    operation: 'read' | 'write' | 'delete' | 'encrypt' | 'decrypt' | 'cleanup', 
+    duration: number, 
+    size: number, 
+    metadata: Record<string, any> = {}
+  ): void {
+    const metric: StorageMetric = {
       id: this.generateMetricId(),
-      operation, // 'read', 'write', 'delete', 'encrypt', 'decrypt'
+      operation,
       duration,
       size,
       timestamp: new Date(),
@@ -276,8 +464,8 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Record memory usage metric
-  recordMemoryMetric(usage, timestamp = new Date()) {
-    const metric = {
+  public recordMemoryMetric(usage: number, timestamp = new Date()): void {
+    const metric: MemoryMetric = {
       id: this.generateMetricId(),
       usage,
       timestamp,
@@ -297,8 +485,8 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Record frame rate metric
-  recordFrameRate(frameRate, timestamp = new Date()) {
-    const metric = {
+  public recordFrameRate(frameRate: number, timestamp = new Date()): void {
+    const metric: FrameRateMetric = {
       id: this.generateMetricId(),
       frameRate,
       timestamp,
@@ -317,8 +505,8 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Record CPU usage metric
-  recordCPUUsage(usage, timestamp = new Date()) {
-    const metric = {
+  public recordCPUUsage(usage: number, timestamp = new Date()): void {
+    const metric: CPUMetric = {
       id: this.generateMetricId(),
       usage,
       timestamp,
@@ -337,8 +525,14 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Record network operation performance
-  recordNetworkOperation(url, method, duration, size, status) {
-    const metric = {
+  public recordNetworkOperation(
+    url: string, 
+    method: string, 
+    duration: number, 
+    size: number, 
+    status: number
+  ): void {
+    const metric: NetworkMetric = {
       id: this.generateMetricId(),
       url,
       method,
@@ -353,12 +547,12 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Record user interaction performance
-  recordUserInteraction(type, event) {
-    const metric = {
+  public recordUserInteraction(type: string, event: Event): void {
+    const metric: UserInteractionMetric = {
       id: this.generateMetricId(),
       type,
       timestamp: new Date(),
-      target: event.target?.tagName || 'unknown',
+      target: (event.target as HTMLElement)?.tagName || 'unknown',
       processingTime: performance.now() - (event.timeStamp || 0)
     };
     
@@ -366,8 +560,8 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Record navigation performance metric
-  recordNavigationMetric(entry) {
-    const metric = {
+  private recordNavigationMetric(entry: PerformanceNavigationTiming): void {
+    const metric: RenderingMetric = {
       id: this.generateMetricId(),
       type: 'navigation',
       name: entry.name,
@@ -381,8 +575,8 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Record paint performance metric
-  recordPaintMetric(entry) {
-    const metric = {
+  private recordPaintMetric(entry: PerformanceEntry): void {
+    const metric: RenderingMetric = {
       id: this.generateMetricId(),
       type: 'paint',
       name: entry.name,
@@ -394,14 +588,15 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Record resource loading metric
-  recordResourceMetric(entry) {
+  private recordResourceMetric(entry: PerformanceResourceTiming): void {
     if (entry.name.includes('cold-storage') || entry.name.includes('.json')) {
-      const metric = {
+      const metric: NetworkMetric = {
         id: this.generateMetricId(),
-        type: 'resource',
-        name: entry.name,
+        url: entry.name,
+        method: 'GET', // Most resources are GET requests
         duration: entry.duration,
         size: entry.transferSize || 0,
+        status: 200, // Assume success for completed resources
         timestamp: new Date()
       };
       
@@ -410,8 +605,8 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Record long task metric
-  recordLongTaskMetric(entry) {
-    const metric = {
+  private recordLongTaskMetric(entry: PerformanceEntry): void {
+    const metric: RenderingMetric = {
       id: this.generateMetricId(),
       type: 'longtask',
       duration: entry.duration,
@@ -429,7 +624,7 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Check search performance and alert if needed
-  checkSearchPerformance(metric) {
+  private checkSearchPerformance(metric: SearchMetric): void {
     const threshold = metric.type === 'hot' 
       ? PERFORMANCE_CONFIG.SLOW_SEARCH_THRESHOLD
       : PERFORMANCE_CONFIG.SLOW_COLD_THRESHOLD;
@@ -454,7 +649,7 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Record performance alert
-  recordAlert(type, message, metadata = {}) {
+  public recordAlert(type: string, message: string, metadata: Record<string, any> = {}): void {
     const now = Date.now();
     const lastAlert = this.alerts.lastAlerts.get(type);
     
@@ -463,7 +658,7 @@ class PerformanceMonitor {
       return;
     }
     
-    const alert = {
+    const alert: PerformanceAlert = {
       id: this.generateMetricId(),
       type,
       message,
@@ -482,7 +677,7 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Get alert severity level
-  getAlertSeverity(type, metadata) {
+  private getAlertSeverity(type: string, metadata: Record<string, any>): 'info' | 'warning' | 'critical' {
     switch (type) {
       case 'high_memory':
         return metadata.usage > 300 ? 'critical' : 'warning';
@@ -496,7 +691,7 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Get current memory usage
-  getMemoryUsage() {
+  private getMemoryUsage(): number {
     try {
       if (performance.memory) {
         return Math.round(performance.memory.usedJSHeapSize / (1024 * 1024));
@@ -508,7 +703,7 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Get current frame rate estimate
-  getFrameRate() {
+  private getFrameRate(): number {
     // This is a simplified frame rate estimation
     // In a real implementation, you'd use requestAnimationFrame
     try {
@@ -519,7 +714,7 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Estimate CPU usage
-  estimateCPUUsage() {
+  private estimateCPUUsage(): number {
     // Simplified CPU usage estimation
     // Based on recent long task metrics
     const recentTasks = this.metrics.renderingPerformance
@@ -528,31 +723,31 @@ class PerformanceMonitor {
     
     if (recentTasks.length === 0) return 0;
     
-    const totalTaskTime = recentTasks.reduce((sum, task) => sum + task.duration, 0);
+    const totalTaskTime = recentTasks.reduce((sum, task) => sum + (task.duration || 0), 0);
     return Math.min(100, (totalTaskTime / 5000) * 100); // % of last 5 seconds
   }
 
   // AIDEV-NOTE: Add metric to storage with size limit
-  addMetric(category, metric) {
+  private addMetric(category: keyof MetricsStorage, metric: BaseMetric): void {
     if (!this.metrics[category]) {
-      this.metrics[category] = [];
+      (this.metrics as any)[category] = [];
     }
     
-    this.metrics[category].push(metric);
+    (this.metrics[category] as BaseMetric[]).push(metric);
     
     // Enforce size limit
     if (this.metrics[category].length > PERFORMANCE_CONFIG.MAX_SAMPLES) {
-      this.metrics[category] = this.metrics[category].slice(-PERFORMANCE_CONFIG.MAX_SAMPLES);
+      (this.metrics[category] as BaseMetric[]) = (this.metrics[category] as BaseMetric[]).slice(-PERFORMANCE_CONFIG.MAX_SAMPLES);
     }
   }
 
   // AIDEV-NOTE: Generate unique metric ID
-  generateMetricId() {
+  private generateMetricId(): string {
     return `metric_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   // AIDEV-NOTE: Get performance summary statistics
-  getPerformanceSummary(hours = 1) {
+  public getPerformanceSummary(hours = 1): PerformanceSummary {
     const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
     
     // Filter recent metrics
@@ -604,15 +799,15 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Calculate average for metric array
-  calculateAverage(metrics, property) {
+  private calculateAverage(metrics: BaseMetric[], property: string): number {
     if (metrics.length === 0) return 0;
-    const sum = metrics.reduce((total, metric) => total + metric[property], 0);
+    const sum = metrics.reduce((total, metric) => total + ((metric as any)[property] || 0), 0);
     return Math.round(sum / metrics.length);
   }
 
   // AIDEV-NOTE: Group alerts by type
-  groupAlertsByType(alerts) {
-    const grouped = {};
+  private groupAlertsByType(alerts: PerformanceAlert[]): Record<string, number> {
+    const grouped: Record<string, number> = {};
     alerts.forEach(alert => {
       grouped[alert.type] = (grouped[alert.type] || 0) + 1;
     });
@@ -620,15 +815,16 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Clean up old metrics
-  cleanupOldMetrics() {
+  private cleanupOldMetrics(): void {
     const cutoff = new Date(Date.now() - PERFORMANCE_CONFIG.METRIC_RETENTION_HOURS * 60 * 60 * 1000);
     
     for (const category in this.metrics) {
-      const originalLength = this.metrics[category].length;
-      this.metrics[category] = this.metrics[category]
+      const key = category as keyof MetricsStorage;
+      const originalLength = this.metrics[key].length;
+      (this.metrics[key] as BaseMetric[]) = (this.metrics[key] as BaseMetric[])
         .filter(metric => metric.timestamp >= cutoff);
       
-      const removed = originalLength - this.metrics[category].length;
+      const removed = originalLength - this.metrics[key].length;
       if (removed > 0) {
         console.log(`Cleaned up ${removed} old ${category} metrics`);
       }
@@ -645,19 +841,19 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Register performance event listener
-  onPerformanceEvent(listener) {
+  public onPerformanceEvent(listener: PerformanceEventListener): () => void {
     this.performanceListeners.add(listener);
     return () => this.performanceListeners.delete(listener);
   }
 
   // AIDEV-NOTE: Register alert listener
-  onAlert(listener) {
+  public onAlert(listener: AlertEventListener): () => void {
     this.alertListeners.add(listener);
     return () => this.alertListeners.delete(listener);
   }
 
   // AIDEV-NOTE: Notify performance event listeners
-  notifyPerformanceListeners(type, data) {
+  private notifyPerformanceListeners(type: string, data: any): void {
     for (const listener of this.performanceListeners) {
       try {
         listener(type, data);
@@ -668,7 +864,7 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Notify alert listeners
-  notifyAlertListeners(alert) {
+  private notifyAlertListeners(alert: PerformanceAlert): void {
     for (const listener of this.alertListeners) {
       try {
         listener(alert);
@@ -679,7 +875,7 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Get raw metrics for analysis
-  getRawMetrics(category, limit = 100) {
+  public getRawMetrics(category: keyof MetricsStorage, limit = 100): BaseMetric[] {
     if (!this.metrics[category]) return [];
     
     return this.metrics[category]
@@ -688,7 +884,13 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Export performance data
-  exportPerformanceData() {
+  public exportPerformanceData(): {
+    timestamp: Date;
+    session: CurrentSession;
+    metrics: Partial<MetricsStorage>;
+    alerts: PerformanceAlert[];
+    summary: PerformanceSummary;
+  } {
     return {
       timestamp: new Date(),
       session: this.currentSession,
@@ -704,7 +906,7 @@ class PerformanceMonitor {
   }
 
   // AIDEV-NOTE: Cleanup and shutdown
-  destroy() {
+  public destroy(): void {
     this.stopMonitoring();
     
     if (this.cleanupInterval) {
@@ -734,6 +936,3 @@ class PerformanceMonitor {
 
 // AIDEV-NOTE: Create singleton instance
 export const performanceMonitor = new PerformanceMonitor();
-
-// AIDEV-NOTE: Export class for testing
-export { PerformanceMonitor, PERFORMANCE_CONFIG };

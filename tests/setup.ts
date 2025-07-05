@@ -73,7 +73,9 @@ Object.defineProperty(window, 'navigator', {
       level: 1.0,
       charging: true,
       chargingTime: 0,
-      dischargingTime: Infinity
+      dischargingTime: Infinity,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
     })),
     wakeLock: {
       request: vi.fn(() => Promise.resolve({
@@ -150,18 +152,26 @@ const mockIDB = {
   deleteDatabase: vi.fn(() => Promise.resolve())
 }
 
-Object.defineProperty(window, 'indexedDB', { value: mockIDB })
+Object.defineProperty(window, 'indexedDB', { 
+  value: mockIDB, 
+  configurable: true,
+  writable: true 
+})
 
 // Mock fetch for cold storage testing
 global.fetch = vi.fn()
 
 // Mock URL.createObjectURL and revokeObjectURL
 Object.defineProperty(window.URL, 'createObjectURL', {
-  value: vi.fn(() => 'blob:mock-url')
+  value: vi.fn(() => 'blob:mock-url'),
+  configurable: true,
+  writable: true
 })
 
 Object.defineProperty(window.URL, 'revokeObjectURL', {
-  value: vi.fn()
+  value: vi.fn(),
+  configurable: true,
+  writable: true
 })
 
 // Mock ResizeObserver

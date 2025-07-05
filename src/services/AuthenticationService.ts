@@ -3,21 +3,44 @@
  * 
  * Implements password verification without storing passwords by using
  * encrypted challenges that can only be decrypted with the correct key.
+ * 
+ * AIDEV-NOTE: Migrated to TypeScript for improved type safety
  */
 
+interface AuthChallenge {
+  version: string;
+  salt: number[];
+  encrypted: {
+    iv: number[];
+    data: number[];
+  };
+  expectedResponse: number[];
+}
+
+interface AuthState {
+  isAuthenticated: boolean;
+  isInitialized: boolean;
+  hasChallenge: boolean;
+}
+
 export class AuthenticationService {
+  private isAuthenticated: boolean;
+  private encryptionKey: CryptoKey | null;
+  private keyDerivationSalt: Uint8Array | null;
+
   constructor() {
     this.isAuthenticated = false;
     this.encryptionKey = null;
     this.keyDerivationSalt = null;
-    this.currentPassword = null; // Store current password for cold storage authentication
+    // AIDEV-NOTE: Removed currentPassword storage - security vulnerability fixed
+    // Password is no longer stored in memory to prevent exposure via memory dumps
   }
 
   /**
    * Check if password setup is needed (first time use)
    * AIDEV-NOTE: Enhanced with logging for debugging authentication flow
    */
-  needsPasswordSetup() {
+  needsPasswordSetup(): boolean {
     const hasChallenge = !!localStorage.getItem('authChallenge');
     console.log('[AuthenticationService] Checking password setup need:', { hasChallenge, needsSetup: !hasChallenge });
     return !hasChallenge;
@@ -27,7 +50,7 @@ export class AuthenticationService {
    * Set up password authentication on first use
    * AIDEV-NOTE: Enhanced with detailed logging for password setup flow
    */
-  async setupPassword(password) {
+  async setupPassword(password: string): Promise<boolean> {
     console.log('[AuthenticationService] Starting password setup...');
     
     if (!this.validatePasswordStrength(password)) {
@@ -61,7 +84,7 @@ export class AuthenticationService {
       // Set authenticated state
       this.isAuthenticated = true;
       this.encryptionKey = key;
-      this.currentPassword = password; // Store password for cold storage
+      // AIDEV-NOTE: Password no longer stored - security improvement
       console.log('[AuthenticationService] Password setup completed successfully');
       
       return true;
@@ -75,7 +98,7 @@ export class AuthenticationService {
    * Verify password using challenge-response
    * AIDEV-NOTE: Enhanced with detailed logging for password verification flow
    */
-  async verifyPassword(password) {
+  async verifyPassword(password: string): Promise<boolean> {
     console.log('[AuthenticationService] Starting password verification...');
     
     try {
@@ -110,7 +133,7 @@ export class AuthenticationService {
         this.isAuthenticated = true;
         this.encryptionKey = key;
         this.keyDerivationSalt = salt;
-        this.currentPassword = password; // Store password for cold storage
+        // AIDEV-NOTE: Password no longer stored - security improvement
         console.log('[AuthenticationService] Password verification successful');
         return true;
       } else {
@@ -127,7 +150,7 @@ export class AuthenticationService {
    * Reset password and clear all data
    * AIDEV-NOTE: Enhanced with detailed logging for password reset flow
    */
-  async resetPassword() {
+  async resetPassword(): Promise<boolean> {
     console.log('[AuthenticationService] Starting password reset...');
     
     try {
@@ -170,7 +193,7 @@ export class AuthenticationService {
   /**
    * Get encryption key for workers (export as raw bytes)
    */
-  async getKeyMaterialForWorker() {
+  async getKeyMaterialForWorker(): Promise<ArrayBuffer> {
     if (!this.isAuthenticated || !this.encryptionKey) {
       throw new Error('Not authenticated');
     }
@@ -180,41 +203,49 @@ export class AuthenticationService {
 
   /**
    * Derive encryption key from password using PBKDF2
+   * AIDEV-NOTE: Enhanced with secure memory cleanup
    */
-  async deriveKeyFromPassword(password, salt) {
+  private async deriveKeyFromPassword(password: string, salt: Uint8Array): Promise<CryptoKey> {
     const encoder = new TextEncoder();
     const passwordBuffer = encoder.encode(password);
     
-    // Import password as key material
-    const keyMaterial = await crypto.subtle.importKey(
-      'raw',
-      passwordBuffer,
-      'PBKDF2',
-      false,
-      ['deriveBits', 'deriveKey']
-    );
-    
-    // Derive AES-GCM key - AIDEV-NOTE: Made extractable for worker export
-    const key = await crypto.subtle.deriveKey(
-      {
-        name: 'PBKDF2',
-        salt: salt,
-        iterations: 600000, // OWASP recommended minimum 2024
-        hash: 'SHA-256'
-      },
-      keyMaterial,
-      { name: 'AES-GCM', length: 256 },
-      true, // AIDEV-NOTE: Changed to true to allow export for workers
-      ['encrypt', 'decrypt']
-    );
-    
-    return key;
+    try {
+      // Import password as key material
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        passwordBuffer,
+        'PBKDF2',
+        false,
+        ['deriveBits', 'deriveKey']
+      );
+      
+      // Derive AES-GCM key - AIDEV-NOTE: Made extractable for worker export
+      const key = await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: salt,
+          iterations: 600000, // OWASP recommended minimum 2024
+          hash: 'SHA-256'
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        true, // AIDEV-NOTE: Changed to true to allow export for workers
+        ['encrypt', 'decrypt']
+      );
+      
+      return key;
+    } finally {
+      // AIDEV-NOTE: Security improvement - clear password from memory
+      if (passwordBuffer && passwordBuffer.fill) {
+        passwordBuffer.fill(0);
+      }
+    }
   }
 
   /**
    * Create encrypted challenge for password verification
    */
-  async createAuthChallenge(key) {
+  private async createAuthChallenge(key: CryptoKey): Promise<AuthChallenge> {
     // Generate random challenge text
     const challengeText = crypto.getRandomValues(new Uint8Array(32));
     
@@ -231,7 +262,7 @@ export class AuthenticationService {
     
     return {
       version: '1.0',
-      salt: Array.from(this.keyDerivationSalt),
+      salt: Array.from(this.keyDerivationSalt!),
       encrypted: {
         iv: Array.from(iv),
         data: Array.from(new Uint8Array(encryptedChallenge))
@@ -243,7 +274,7 @@ export class AuthenticationService {
   /**
    * Validate challenge by attempting decryption
    */
-  async validateChallenge(key, challenge) {
+  private async validateChallenge(key: CryptoKey, challenge: AuthChallenge): Promise<boolean> {
     try {
       // Decrypt challenge
       const iv = new Uint8Array(challenge.encrypted.iv);
@@ -282,7 +313,7 @@ export class AuthenticationService {
   /**
    * Validate password strength
    */
-  validatePasswordStrength(password) {
+  private validatePasswordStrength(password: string): boolean {
     if (!password || typeof password !== 'string') {
       return false;
     }
@@ -297,7 +328,7 @@ export class AuthenticationService {
   /**
    * Clear IndexedDB database
    */
-  async clearIndexedDB(databaseName) {
+  private async clearIndexedDB(databaseName: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const deleteRequest = indexedDB.deleteDatabase(databaseName);
       
@@ -311,20 +342,22 @@ export class AuthenticationService {
   }
 
   /**
-   * Get user password for cold storage authentication
-   * AIDEV-NOTE: Returns password for batch-specific key derivation
+   * AIDEV-NOTE: Secure key derivation method for cold storage
+   * Derives keys without storing password in memory - security improvement
    */
-  getUserPassword() {
-    if (!this.isAuthenticated || !this.currentPassword) {
-      throw new Error('Not authenticated or password not available');
+  async deriveKeyForBatch(password: string, batchSalt: Uint8Array): Promise<CryptoKey> {
+    if (!this.isAuthenticated) {
+      throw new Error('Not authenticated');
     }
-    return this.currentPassword;
+    
+    // Use the same key derivation method but with batch-specific salt
+    return await this.deriveKeyFromPassword(password, batchSalt);
   }
 
   /**
    * Get current authentication state
    */
-  getAuthState() {
+  getAuthState(): AuthState {
     return {
       isAuthenticated: this.isAuthenticated,
       isInitialized: !this.needsPasswordSetup(),

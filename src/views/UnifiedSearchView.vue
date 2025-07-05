@@ -1,760 +1,97 @@
 <template>
-  <!-- AIDEV-NOTE: Unified search interface with dark theme - refined spacing, alignment, and colors -->
+  <!-- AIDEV-NOTE: Refactored unified search view using focused sub-components -->
   <div class="min-h-screen bg-gray-900 text-white">
-    <!-- Header Section with Branding and Search -->
-    <div class="bg-gray-800 border-b border-gray-700">
-      <div class="max-w-7xl mx-auto px-6 py-4">
-        <!-- Logo/Branding -->
-        <div class="text-center mb-4">
-          <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full mb-2">
-            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-            </svg>
-          </div>
-        </div>
+    <!-- Search Header -->
+    <SearchHeader 
+      v-model:search-query="searchQuery"
+      :is-importing="isImporting"
+      @search="performSearch"
+      @import="showImportModal = true"
+    />
 
-        <!-- Main Search Bar -->
-        <div class="max-w-2xl mx-auto mb-3">
-          <div class="relative bg-gray-700 rounded-xl shadow-xl border border-gray-600 overflow-hidden">
-            <div class="flex items-center">
-              <div class="pl-8 pr-4">
-                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
-              </div>
-              <input
-                v-model="searchQuery"
-                @keyup.enter="performSearch"
-                type="text"
-                placeholder="Ask me anything..."
-                class="flex-1 px-4 py-3 text-base bg-transparent border-0 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-inset text-white placeholder-gray-400"
-                aria-label="Search query"
-              />
-              <button 
-                @click="performSearch"
-                :disabled="!searchQuery.trim()"
-                class="px-6 py-2 m-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-gray-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
-                aria-label="Start search"
-              >
-                Search
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex justify-center gap-4 flex-wrap">
-          <button 
-            @click="showImportModal = true"
-            :disabled="isImporting"
-            class="px-6 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg shadow-lg hover:from-cyan-700 hover:to-blue-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Import appeal decision letters from UK Planning Appeals database"
-          >
-            <svg v-if="isImporting" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Import Appeal Cases
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Search Controls Section -->
-    <div class="max-w-7xl mx-auto px-6 py-3">
-      <!-- Search Sensitivity Slider -->
-      <div class="bg-gray-800 rounded-xl shadow-lg border border-gray-700 p-4 mb-3">
-        <div class="flex items-center justify-between mb-2">
-          <label class="text-base font-medium text-gray-200">Search Sensitivity</label>
-          <span class="text-sm text-gray-400 bg-gray-700 px-2 py-1 rounded-full">{{ thresholdLabel }}</span>
-        </div>
-        <div class="relative">
-          <input
-            v-model.number="searchThreshold"
-            @input="updateThreshold"
-            type="range"
-            min="0"
-            max="1"
-            step="0.1"
-            class="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer slider-dark focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-            aria-label="Search sensitivity threshold"
-          />
-          <div class="flex justify-between text-xs text-gray-400 mt-2">
-            <span>More Fuzzy</span>
-            <span>More Sensitive</span>
-          </div>
-        </div>
-      </div>
-
-
-      <!-- Date Filter Controls -->
-      <div class="bg-gray-800 rounded-xl shadow-lg border border-gray-700 p-4">
-        <div class="mb-2">
-          <label class="text-base font-medium text-gray-200">Date Filter (Decision Date)</label>
-        </div>
-        
-        <!-- Filter Type Selection -->
-        <div class="flex gap-3 mb-3 flex-wrap">
-          <button 
-            @click="updateDateFilter('all')"
-            :class="[
-              'px-4 py-3 text-sm rounded-lg transition-colors',
-              dateFilter.type === 'all' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            ]"
-          >
-            All
-          </button>
-          <button 
-            @click="updateDateFilter('laterThan')"
-            :class="[
-              'px-4 py-3 text-sm rounded-lg transition-colors',
-              dateFilter.type === 'laterThan' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            ]"
-          >
-            No earlier than
-          </button>
-          <button 
-            @click="updateDateFilter('earlierThan')"
-            :class="[
-              'px-4 py-3 text-sm rounded-lg transition-colors',
-              dateFilter.type === 'earlierThan' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            ]"
-          >
-            No later than
-          </button>
-          <button 
-            @click="updateDateFilter('range')"
-            :class="[
-              'px-4 py-3 text-sm rounded-lg transition-colors',
-              dateFilter.type === 'range' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            ]"
-          >
-            Date Range
-          </button>
-        </div>
-
-        <!-- Date Input Fields -->
-        <div v-if="dateFilter.type === 'laterThan'" class="space-y-2">
-          <label class="text-xs text-gray-400">No earlier than:</label>
-          <input
-            v-model="dateFilter.laterThan"
-            @change="applyDateFilter"
-            type="date"
-            class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-700 text-white"
-          />
-        </div>
-
-        <div v-if="dateFilter.type === 'earlierThan'" class="space-y-2">
-          <label class="text-xs text-gray-400">No later than:</label>
-          <input
-            v-model="dateFilter.earlierThan"
-            @change="applyDateFilter"
-            type="date"
-            class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-700 text-white"
-          />
-        </div>
-
-        <div v-if="dateFilter.type === 'range'" class="space-y-3">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs text-gray-400 mb-1">From:</label>
-              <input
-                v-model="dateFilter.laterThan"
-                @change="applyDateFilter"
-                type="date"
-                class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-700 text-white"
-              />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-400 mb-1">To:</label>
-              <input
-                v-model="dateFilter.earlierThan"
-                @change="applyDateFilter"
-                type="date"
-                class="w-full px-3 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-700 text-white"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Clear Date Filter Button -->
-        <div v-if="dateFilter.type !== 'all'" class="pt-2">
-          <button
-            @click="clearDateFilter"
-            class="text-xs text-gray-500 hover:text-gray-300"
-          >
-            Clear date filter
-          </button>
-        </div>
-      </div>
-
-      <!-- Advanced Metadata Filters Section -->
-      <div v-if="results.length > 0" class="bg-gray-800 rounded-xl shadow-lg border border-gray-700 p-4">
-        <!-- Filter Header with Toggle -->
-        <div class="flex items-center justify-between mb-3">
-          <label class="text-base font-medium text-gray-200">Advanced Filters</label>
-          <div class="flex items-center gap-3">
-            <span v-if="activeFilterCount > 0" class="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">
-              {{ activeFilterCount }} active
-            </span>
-            <button
-              @click="showAdvancedFilters = !showAdvancedFilters"
-              class="text-sm text-blue-400 hover:text-blue-300 transition-colors"
-            >
-              {{ showAdvancedFilters ? 'Hide Filters' : 'Show Filters' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Expandable Filter Controls -->
-        <div v-if="showAdvancedFilters" class="space-y-4">
-          
-          <!-- Case Information Filters -->
-          <div class="bg-blue-900/10 border border-blue-800/20 rounded-lg p-3">
-            <h4 class="text-sm font-medium text-blue-300 mb-3">Case Information</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              
-              <!-- LPA Names Filter -->
-              <div v-if="filterOptions.lpaNames.length > 0">
-                <label class="block text-xs text-gray-400 mb-1">LPA Names ({{ filterOptions.lpaNames.length }})</label>
-                <MultiSelect 
-                  v-model="metadataFilters.lpaNames" 
-                  :options="filterOptions.lpaNames"
-                  filter
-                  variant="filled"
-                  placeholder="Select LPAs..."
-                  :maxSelectedLabels="3"
-                  class="w-full text-xs"
-                />
-              </div>
-
-              <!-- Case Types Filter -->
-              <div v-if="filterOptions.caseTypes.length > 0">
-                <label class="block text-xs text-gray-400 mb-1">Case Types ({{ filterOptions.caseTypes.length }})</label>
-                <MultiSelect 
-                  v-model="metadataFilters.caseTypes" 
-                  :options="filterOptions.caseTypes"
-                  filter
-                  placeholder="Select case types..."
-                  :maxSelectedLabels="3"
-                  class="w-full text-xs"
-                />
-              </div>
-
-              <!-- Case Officers Filter -->
-              <div v-if="filterOptions.caseOfficers.length > 0">
-                <label class="block text-xs text-gray-400 mb-1">Case Officers ({{ filterOptions.caseOfficers.length }})</label>
-                <MultiSelect 
-                  v-model="metadataFilters.caseOfficers" 
-                  :options="filterOptions.caseOfficers"
-                  filter
-                  placeholder="Select case officers..."
-                  :maxSelectedLabels="3"
-                  class="w-full text-xs"
-                />
-              </div>
-
-              <!-- Procedures Filter -->
-              <div v-if="filterOptions.procedures.length > 0">
-                <label class="block text-xs text-gray-400 mb-1">Procedures ({{ filterOptions.procedures.length }})</label>
-                <MultiSelect 
-                  v-model="metadataFilters.procedures" 
-                  :options="filterOptions.procedures"
-                  filter
-                  placeholder="Select procedures..."
-                  :maxSelectedLabels="3"
-                  class="w-full text-xs"
-                />
-              </div>
-
-              <!-- Statuses Filter -->
-              <div v-if="filterOptions.statuses.length > 0">
-                <label class="block text-xs text-gray-400 mb-1">Statuses ({{ filterOptions.statuses.length }})</label>
-                <MultiSelect 
-                  v-model="metadataFilters.statuses" 
-                  :options="filterOptions.statuses"
-                  filter
-                  placeholder="Select statuses..."
-                  :maxSelectedLabels="3"
-                  class="w-full text-xs"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Decision Information Filters -->
-          <div class="bg-purple-900/10 border border-purple-800/20 rounded-lg p-3">
-            <h4 class="text-sm font-medium text-purple-300 mb-3">Decision Information</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              
-              <!-- Decision Outcomes Filter -->
-              <div v-if="filterOptions.decisionOutcomes.length > 0">
-                <label class="block text-xs text-gray-400 mb-1">Decision Outcomes</label>
-                <MultiSelect 
-                  v-model="metadataFilters.decisionOutcomes" 
-                  :options="filterOptions.decisionOutcomes"
-                  filter
-                  placeholder="Select decision outcomes..."
-                  :maxSelectedLabels="3"
-                  class="w-full text-xs"
-                />
-              </div>
-
-              <!-- Linked Cases Filter -->
-              <div>
-                <label class="block text-xs text-gray-400 mb-1">Linked Cases</label>
-                <select 
-                  v-model="metadataFilters.hasLinkedCases" 
-                  class="w-full px-2 py-1 border border-gray-600 rounded text-xs bg-gray-700 text-white"
-                >
-                  <option :value="undefined">All Cases</option>
-                  <option :value="true">Has Linked Cases</option>
-                  <option :value="false">No Linked Cases</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Filter Actions -->
-          <div class="flex justify-between items-center pt-2 border-t border-gray-700">
-            <div class="text-xs text-gray-500">
-              Showing {{ filteredResults.length }} of {{ results.length }} results
-            </div>
-            <button
-              @click="clearAllFilters"
-              class="text-xs text-gray-500 hover:text-gray-300 underline"
-            >
-              Clear All Filters
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Search Summary Section -->
-    <div v-if="filteredResults.length > 0 && searchQuery" class="max-w-7xl mx-auto px-6 py-3">
-      <div class="bg-gray-800 rounded-xl shadow-lg border border-gray-700 p-4">
-        <!-- Dark theme version of SearchSummary component -->
-        <div class="text-white">
-          <!-- Header -->
-          <div class="flex items-center mb-4">
-            <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center mr-3">
-              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-              </svg>
-            </div>
-            <h3 class="text-lg font-semibold text-gray-200">Search Results for "{{ searchQuery }}"</h3>
-          </div>
-
-          <!-- Basic Search Stats -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-            <!-- Total Results -->
-            <div class="bg-blue-900/30 rounded-lg p-3 text-center border border-blue-800/30">
-              <div class="text-xl font-bold text-blue-300">
-                {{ searchSummary.totalResults }}
-                <span v-if="hiddenDocuments.size > 0" class="text-xs text-gray-400 ml-1">
-                  ({{ hiddenDocuments.size }} hidden)
-                </span>
-              </div>
-              <div class="text-xs text-blue-200">Visible Results</div>
-            </div>
-            
-            <!-- Unique Documents -->
-            <div class="bg-green-900/30 rounded-lg p-3 text-center border border-green-800/30">
-              <div class="text-xl font-bold text-green-300">{{ searchSummary.uniqueDocuments }}</div>
-              <div class="text-xs text-green-200">Documents Found</div>
-            </div>
-            
-            <!-- Search Time -->
-            <div class="bg-purple-900/30 rounded-lg p-3 text-center border border-purple-800/30">
-              <div class="text-xl font-bold text-purple-300">{{ searchSummary.searchTime }}ms</div>
-              <div class="text-xs text-purple-200">Search Time</div>
-            </div>
-          </div>
-
-          <!-- Decision Outcomes -->
-          <div v-if="searchSummary.decisionBreakdown.total > 0" class="mb-4">
-            <h4 class="text-sm font-semibold text-gray-300 mb-2">Planning Appeal Decisions</h4>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <!-- Allowed Decisions -->
-              <div class="bg-green-900/20 border border-green-800/30 rounded-lg p-3">
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center">
-                    <div class="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                    <span class="text-xs font-medium text-green-300">Allowed</span>
-                  </div>
-                  <span class="text-sm font-bold text-green-400">{{ searchSummary.decisionBreakdown.allowed }}</span>
-                </div>
-                <div class="text-xs text-green-200">
-                  {{ getPercentage(searchSummary.decisionBreakdown.allowed, searchSummary.decisionBreakdown.total) }}%
-                </div>
-              </div>
-
-              <!-- Dismissed Decisions -->
-              <div class="bg-red-900/20 border border-red-800/30 rounded-lg p-3">
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center">
-                    <div class="w-2 h-2 bg-red-400 rounded-full mr-2"></div>
-                    <span class="text-xs font-medium text-red-300">Dismissed</span>
-                  </div>
-                  <span class="text-sm font-bold text-red-400">{{ searchSummary.decisionBreakdown.dismissed }}</span>
-                </div>
-                <div class="text-xs text-red-200">
-                  {{ getPercentage(searchSummary.decisionBreakdown.dismissed, searchSummary.decisionBreakdown.total) }}%
-                </div>
-              </div>
-
-              <!-- Unknown Decisions -->
-              <div class="bg-gray-700/30 border border-gray-600 rounded-lg p-3">
-                <div class="flex items-center justify-between mb-1">
-                  <div class="flex items-center">
-                    <div class="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
-                    <span class="text-xs font-medium text-gray-400">Unknown</span>
-                  </div>
-                  <span class="text-sm font-bold text-gray-400">{{ searchSummary.decisionBreakdown.unknown }}</span>
-                </div>
-                <div class="text-xs text-gray-500">
-                  {{ getPercentage(searchSummary.decisionBreakdown.unknown, searchSummary.decisionBreakdown.total) }}%
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Planning Appeal Insights -->
-          <div v-if="searchSummary.planningInsights.uniqueLPAs > 0 || searchSummary.planningInsights.uniqueInspectors > 0" class="pt-3 border-t border-gray-700">
-            <h4 class="text-sm font-semibold text-gray-300 mb-2">Planning Insights</h4>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-              <div v-if="searchSummary.planningInsights.uniqueLPAs > 0">
-                <div class="text-sm font-bold text-indigo-400">{{ searchSummary.planningInsights.uniqueLPAs }}</div>
-                <div class="text-xs text-indigo-300">Unique LPAs</div>
-              </div>
-              <div v-if="searchSummary.planningInsights.uniqueInspectors > 0">
-                <div class="text-sm font-bold text-indigo-400">{{ searchSummary.planningInsights.uniqueInspectors }}</div>
-                <div class="text-xs text-indigo-300">Inspectors</div>
-              </div>
-              <div v-if="searchSummary.planningInsights.dateRange.start">
-                <div class="text-xs font-medium text-indigo-400">{{ searchSummary.planningInsights.dateRange.start }}</div>
-                <div class="text-xs text-indigo-300">Earliest</div>
-              </div>
-              <div v-if="searchSummary.planningInsights.dateRange.end">
-                <div class="text-xs font-medium text-indigo-400">{{ searchSummary.planningInsights.dateRange.end }}</div>
-                <div class="text-xs text-indigo-300">Latest</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Results Section -->
-    <div class="max-w-7xl mx-auto px-6 py-3">
-      <!-- Search Error -->
-      <div v-if="searchError" class="text-center py-8">
-        <div class="text-red-400 mb-3">
-          <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-        </div>
-        <p class="text-lg text-red-400 mb-3">Search Failed</p>
-        <p class="text-gray-400 mb-3">{{ searchError }}</p>
-        <div class="flex justify-center gap-2">
-          <button 
-            @click="retrySearch" 
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 focus:ring-offset-gray-900 transition-colors shadow-lg hover:shadow-xl"
-            aria-label="Retry last search"
-          >
-            Retry Search
-          </button>
-          <button 
-            @click="clearError" 
-            class="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500/50 focus:ring-offset-2 focus:ring-offset-gray-900 transition-colors shadow-lg hover:shadow-xl"
-            aria-label="Clear error message"
-          >
-            Clear Error
-          </button>
-        </div>
-      </div>
-
-      <!-- Progressive Loading State - Enhanced for Hot/Cold Storage -->
-      <div v-else-if="isLoading || store.state.search.results.isLoading" class="text-center py-8">
-        <div class="space-y-4">
-          <!-- Main loading spinner -->
-          <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          
-          <!-- Progressive loading indicators -->
-          <div class="max-w-lg mx-auto space-y-2">
-            <!-- Legacy storage search status -->
-            <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
-              <div class="flex items-center space-x-2">
-                <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <span class="text-sm text-gray-300">Legacy Storage (Local)</span>
-              </div>
-              <div class="flex items-center space-x-2">
-                <span v-if="store.state.search.results.isLegacyComplete" class="text-green-400 text-xs">
-                  ✓ {{ store.state.search.results.legacy.length }} results
-                </span>
-                <span v-else class="text-blue-400 text-xs">Searching...</span>
-              </div>
-            </div>
-            
-            <!-- Cold storage search status -->
-            <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
-              <div class="flex items-center space-x-2">
-                <div class="w-2 h-2 bg-cyan-500 rounded-full animate-pulse"></div>
-                <span class="text-sm text-gray-300">Cold Storage (Archive)</span>
-              </div>
-              <div class="flex items-center space-x-2">
-                <span v-if="store.state.search.results.isColdComplete" class="text-green-400 text-xs">
-                  ✓ {{ store.state.search.results.cold.length }} results
-                </span>
-                <span v-else-if="store.state.coldStorage.searchProgress.isSearching" class="text-cyan-400 text-xs">
-                  {{ store.state.coldStorage.searchProgress.completedBatches }}/{{ store.state.coldStorage.searchProgress.totalBatches }} batches
-                </span>
-                <span v-else class="text-gray-500 text-xs">Waiting...</span>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Search progress message -->
-          <p class="text-gray-400 text-sm">
-            {{ store.state.coldStorage.searchProgress.message || 'Searching across storage tiers...' }}
-          </p>
-        </div>
-      </div>
-
-      <!-- No Results -->
-      <div v-else-if="filteredResults.length === 0 && searchQuery && !searchError" class="text-center py-8">
-        <p class="text-lg text-gray-400 mb-3">
-          {{ results.length > 0 ? 'All results hidden' : 'No results found' }}
-        </p>
-        <p class="text-gray-500">
-          {{ results.length > 0 ? 'All search results have been hidden from view' : 'Try different keywords or check your spelling' }}
-        </p>
-      </div>
-
-      <!-- Results List -->
-      <div v-else-if="filteredResults.length > 0" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        <SearchResultCard
-          v-for="result in paginatedResults"
-          :key="result.document.id"
-          :result="result"
-          :search-query="searchQuery"
-          @view-document="openDocument"
-          @hide-document="hideDocument"
-        />
-      </div>
-
-      <!-- Pagination -->
-      <div v-if="filteredResults.length > resultsPerPage" class="mt-6 flex justify-center">
-        <div class="flex gap-2">
-          <button
-            v-for="page in totalPages"
-            :key="page"
-            @click="currentPage = page"
-            :class="[
-              'px-4 py-2 rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50',
-              currentPage === page 
-                ? 'bg-blue-600 text-white shadow-lg hover:shadow-xl' 
-                : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:shadow-lg border border-gray-600'
-            ]"
-            :aria-label="`Go to page ${page}`"
-            :aria-current="currentPage === page ? 'page' : undefined"
-          >
-            {{ page }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Search Debug Panel -->
-    <div v-if="showDebugPanel" class="max-w-7xl mx-auto px-6 py-4">
-      <SearchDebugPanel ref="debugPanel" />
-    </div>
-
-    <!-- Document Stats Footer -->
-    <div class="text-center py-4 border-t border-gray-700 bg-gray-800/50 mt-3">
-      <div class="text-xs text-gray-400">
-        <p v-if="documentCount > 0">
-          {{ documentCount }} documents in cold storage | {{ indexedCount }} searchable
-        </p>
-        <p v-else class="text-gray-500">
-          No documents available. Use "Import Appeal Cases" to populate the archive.
-        </p>
-      </div>
-      
-      <!-- Debug Panel Toggle -->
-      <button 
-        @click="toggleDebugPanel"
-        class="mt-2 px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded border border-gray-600 transition-colors"
-        title="Toggle Search Diagnostics"
-      >
-        {{ showDebugPanel ? 'Hide' : 'Show' }} Debug Panel
-      </button>
-    </div>
+    <!-- Search Controls -->
+    <SearchControls
+      v-model:search-threshold="searchThreshold"
+      v-model:date-filter="dateFilter"
+      v-model:metadata-filters="metadataFilters"
+      :filter-options="filterOptions"
+    />
 
     <!-- Authentication Required Modal -->
-    <div v-if="authenticationRequired" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-gray-800 rounded-xl max-w-md w-full mx-4 shadow-2xl border border-gray-700">
-        <div class="p-6">
-          <div class="flex items-center mb-4">
-            <div class="w-12 h-12 bg-blue-900/20 rounded-full flex items-center justify-center mr-4">
-              <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-              </svg>
+    <div v-if="!isAuthenticated" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4">
+        <div class="p-6 text-center">
+          <div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-white mb-2">Authentication Required</h3>
+          
+          <!-- AIDEV-NOTE: Show specific authentication state for debugging -->
+          <div class="text-sm text-gray-400 mb-3 text-left">
+            <div class="flex justify-between">
+              <span>General Authentication:</span>
+              <span :class="isGeneralAuthenticated ? 'text-green-400' : 'text-red-400'">
+                {{ isGeneralAuthenticated ? '✓ Complete' : '✗ Required' }}
+              </span>
             </div>
-            <h3 class="text-lg font-semibold text-white">Authentication Required</h3>
+            <div class="flex justify-between">
+              <span>Cold Storage Access:</span>
+              <span :class="isColdStorageAuthenticated ? 'text-green-400' : 'text-red-400'">
+                {{ isColdStorageAuthenticated ? '✓ Complete' : '✗ Required' }}
+              </span>
+            </div>
           </div>
           
           <p class="text-gray-300 mb-4">
-            Cold storage contains encrypted documents that require authentication to access. 
-            You can either authenticate to access the full archive or continue with local document search only.
+            {{ !isGeneralAuthenticated ? 'Please authenticate to access the search functionality.' : 'Cold storage authentication required for encrypted document access.' }}
           </p>
-          
-          <div class="bg-blue-900/20 border border-blue-800/30 rounded-lg p-3 mb-4">
-            <p class="text-blue-300 text-sm font-medium">Cold Storage Features:</p>
-            <ul class="text-blue-200 text-xs mt-1 space-y-1">
-              <li>• Encrypted document archive with thousands of planning appeal decisions</li>
-              <li>• Advanced search across large datasets</li>
-              <li>• Secure AES-256-GCM encryption</li>
-              <li>• Password-protected access</li>
-            </ul>
-          </div>
-          
-          <div class="flex justify-center">
-            <button
-              @click="authenticateForColdStorage"
-              class="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:from-blue-600 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors font-medium"
-            >
-              Authenticate
-            </button>
-          </div>
+          <button 
+            @click="showAuthenticationModal"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
+          >
+            Go to Login
+          </button>
         </div>
       </div>
     </div>
 
+    <!-- Search Results -->
+    <SearchResults
+      v-if="isAuthenticated"
+      :results="filteredResults"
+      :is-loading="isLoading"
+      :search-error="searchError"
+      :search-query="searchQuery"
+      :search-time="searchTime"
+      v-model:current-page="currentPage"
+      :results-per-page="resultsPerPage"
+      :search-status-message="searchStatusMessage"
+      :opening-document="openingDocument"
+      @view-document="viewDocument"
+      @hide-document="hideDocument"
+    />
 
-    <!-- Import Appeal Cases Modal -->
-    <div v-if="showImportModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-gray-800 rounded-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-700">
-        <div class="p-6">
-          <div class="flex justify-between items-center mb-6">
-            <div>
-              <h2 class="text-2xl font-semibold text-white">Import Appeal Cases</h2>
-              <p class="text-gray-400 text-sm mt-1">Download and import UK Planning Appeal decision letters</p>
-            </div>
-            <button @click="closeImportModal" class="text-gray-400 hover:text-gray-200" :disabled="isImporting">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
+    <!-- Import Modal - Only in production mode -->
+    <ImportModal
+      v-if="isImportEnabled"
+      :show="showImportModal"
+      :is-importing="isImporting"
+      :import-progress="importProgress"
+      @close="showImportModal = false"
+      @start-import="startImport"
+      @cancel-import="cancelImport"
+    />
 
-          <!-- Import Configuration -->
-          <div v-if="!isImporting" class="space-y-6">
-            <!-- Import Settings -->
-            <div class="bg-gray-700/50 rounded-lg p-4">
-              <h3 class="text-lg font-medium text-white mb-3">Import Settings</h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">Batch Size</label>
-                  <select v-model="importSettings.batchSize" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                    <option value="50">50 cases (Testing)</option>
-                    <option value="100">100 cases (Small)</option>
-                    <option value="500">500 cases (Medium)</option>
-                    <option value="1000">1000 cases (Large)</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-300 mb-2">Concurrency Limit</label>
-                  <select v-model="importSettings.concurrencyLimit" class="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                    <option value="5">5 (Conservative)</option>
-                    <option value="10">10 (Balanced)</option>
-                    <option value="15">15 (Aggressive)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex justify-end gap-3">
-              <button
-                @click="closeImportModal"
-                class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500/50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                @click="startImport"
-                class="px-6 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-lg hover:from-cyan-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-colors font-medium"
-              >
-                Start Import
-              </button>
-            </div>
-          </div>
-
-          <!-- Import Progress -->
-          <div v-else class="space-y-6">
-            <!-- Progress Header -->
-            <div class="text-center">
-              <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full mb-4">
-                <svg class="w-8 h-8 text-white animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </div>
-              <h3 class="text-xl font-semibold text-white">{{ importProgress.stage }}</h3>
-              <p class="text-gray-400 mt-1">{{ importProgress.message }}</p>
-            </div>
-
-            <!-- Progress Bar -->
-            <div v-if="importProgress.total > 0" class="w-full bg-gray-700 rounded-full h-3">
-              <div 
-                class="bg-gradient-to-r from-cyan-500 to-blue-600 h-3 rounded-full transition-all duration-300"
-                :style="{ width: `${(importProgress.processed / importProgress.total) * 100}%` }"
-              ></div>
-            </div>
-
-            <!-- Progress Stats -->
-            <div class="grid grid-cols-3 gap-4 text-center">
-              <div class="bg-gray-700/50 rounded-lg p-3">
-                <div class="text-2xl font-bold text-cyan-400">{{ importProgress.processed }}</div>
-                <div class="text-xs text-gray-400">Processed</div>
-              </div>
-              <div class="bg-gray-700/50 rounded-lg p-3">
-                <div class="text-2xl font-bold text-blue-400">{{ importProgress.total }}</div>
-                <div class="text-xs text-gray-400">Total</div>
-              </div>
-              <div class="bg-gray-700/50 rounded-lg p-3">
-                <div class="text-2xl font-bold text-red-400">{{ importProgress.errors.length }}</div>
-                <div class="text-xs text-gray-400">Errors</div>
-              </div>
-            </div>
-
-            <!-- Error Log -->
-            <div v-if="importProgress.errors.length > 0" class="bg-red-900/20 border border-red-800/30 rounded-lg p-4">
-              <h4 class="text-red-400 font-medium mb-2">Import Errors</h4>
-              <div class="max-h-32 overflow-y-auto space-y-1">
-                <div 
-                  v-for="(error, index) in importProgress.errors.slice(-5)" 
-                  :key="index"
-                  class="text-xs text-red-300 font-mono"
-                >
-                  {{ error }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Search Stats Footer -->
+    <SearchStats
+      :document-count="documentCount"
+      :indexed-count="indexedCount"
+      :storage-info="storageInfo"
+      :search-debug-info="searchDebugInfo"
+      @toggle-debug="handleDebugToggle"
+    />
 
     <!-- Performance Indicator -->
     <PerformanceIndicator />
@@ -762,26 +99,47 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { ref, onMounted, computed, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { useStorageStore } from '@/stores';
-import { searchHistoryService } from '@/utils/searchHistoryService';
-import type { SearchHistory, SavedSearch, DateFilter, SearchResult, SearchSummaryData, MetadataFilters, FilterOptions } from '@/types';
-import SearchResultCard from '@/components/SearchResultCard.vue';
-import PerformanceIndicator from '@/components/PerformanceIndicator.vue';
-import SearchDebugPanel from '@/components/SearchDebugPanel.vue';
-import MultiSelect from 'primevue/multiselect';
-import { logger, logImport, logUI, startTimer } from '@/utils/logger';
+import type { DateFilter, SearchResult, MetadataFilters, FilterOptions } from '@/types';
+import { isImportEnabled as getIsImportEnabled } from '@/utils/environment';
+
+// AIDEV-NOTE: Using dependency injection for services
+import { useSearchHistoryService, useLogger } from '@/composables/useServices';
+
+// Import appeal import service
 import { appealImportService } from '@/services/AppealImportService';
-import { authService } from '@/services/AuthenticationService.js';
 
-// AIDEV-NOTE: Replaced Dexie database import with localStorage-based search history service
+// Import error handling system
+import { UserFriendlyErrorFactory } from '@/utils/UserFriendlyError';
 
-// AIDEV-NOTE: Use new Vue store for hot/cold storage management
+// Import components
+import SearchHeader from '@/components/SearchHeader.vue';
+import SearchControls from '@/components/SearchControls.vue';
+import SearchResults from '@/components/SearchResults.vue';
+import ImportModal from '@/components/ImportModal.vue';
+import SearchStats from '@/components/SearchStats.vue';
+import PerformanceIndicator from '@/components/PerformanceIndicator.vue';
+
+// Store and routing
 const store = useStorageStore();
-
-const router = useRouter();
 const route = useRoute();
+
+// AIDEV-NOTE: Injected services using DI container
+const searchHistoryService = useSearchHistoryService();
+const logger = useLogger();
+// Note: coldStorageService accessed through store for now - gradual migration
+
+// Authentication state
+// AIDEV-NOTE: Both general auth and cold storage auth must be verified for search
+const isAuthenticated = computed(() => 
+  store.state.authentication.isAuthenticated && store.state.coldStorage.isAuthenticated
+);
+
+// Separate computed properties for debugging authentication state
+const isGeneralAuthenticated = computed(() => store.state.authentication.isAuthenticated);
+const isColdStorageAuthenticated = computed(() => store.state.coldStorage.isAuthenticated);
 
 // Search state
 const searchQuery = ref('');
@@ -789,10 +147,21 @@ const results = ref<SearchResult[]>([]);
 const isLoading = ref(false);
 const searchTime = ref(0);
 const searchError = ref<string | null>(null);
+const searchStatusMessage = ref('');
+
+// Hidden documents state
+const hiddenDocuments = ref<Set<string>>(new Set());
+
+// Document viewing state
+const openingDocument = ref<string | null>(null);
 
 // UI state
 const showImportModal = ref(false);
 const isImporting = ref(false);
+const currentPage = ref(1);
+const resultsPerPage = 20;
+
+// Import progress
 const importProgress = ref<{
   stage: string;
   message: string;
@@ -806,43 +175,30 @@ const importProgress = ref<{
   total: 0,
   errors: []
 });
+
+// Document stats
 const documentCount = ref(0);
 const indexedCount = ref(0);
-const recentSearches = ref<SearchHistory[]>([]);
-const savedSearches = ref<SavedSearch[]>([]);
-const currentPage = ref(1);
-const resultsPerPage = 20;
-// AIDEV-NOTE: expandedResults state moved to SearchResultCard component
-// AIDEV-NOTE: Track hidden documents for current search session only
-const hiddenDocuments = ref(new Set<string>());
 
 // Search configuration
-const searchThreshold = ref(0.5);
+const searchThreshold = ref(0.6);
 const dateFilter = ref<DateFilter>({
-  type: 'all'
+  type: 'all',
+  laterThan: '',
+  earlierThan: '',
+  from: '',
+  to: ''
 });
 
-// AIDEV-NOTE: Advanced metadata filtering state
 const metadataFilters = ref<MetadataFilters>({
   lpaNames: [],
   caseTypes: [],
   caseOfficers: [],
   procedures: [],
   statuses: [],
-  dateFilters: {
-    startDate: { enabled: false },
-    questionnaireDue: { enabled: false },
-    statementDue: { enabled: false },
-    interestedPartyCommentsDue: { enabled: false },
-    finalCommentsDue: { enabled: false },
-    inquiryEvidenceDue: { enabled: false },
-    eventDate: { enabled: false }
-  },
-  decisionOutcomes: [],
-  hasLinkedCases: undefined
+  decisionOutcomes: []
 });
 
-const showAdvancedFilters = ref(false);
 const filterOptions = ref<FilterOptions>({
   lpaNames: [],
   caseTypes: [],
@@ -852,769 +208,409 @@ const filterOptions = ref<FilterOptions>({
   decisionOutcomes: []
 });
 
-// AIDEV-NOTE: Cold storage is the only storage mode
+// Debug info
+const searchDebugInfo = ref<any>(null);
 
-// AIDEV-NOTE: Authentication state for cold storage access
-const authenticationRequired = ref(false);
-const isAuthenticated = ref(false);
-
-// Debug panel state
-const showDebugPanel = ref(false);
-const debugPanel = ref();
-
-// AIDEV-NOTE: Import settings for appeal cases downloader
-const importSettings = ref({
-  batchSize: 50, // Start with testing size
-  concurrencyLimit: 5 // Conservative concurrency
+// Computed properties
+const storageInfo = computed(() => {
+  const auth = store.state.authentication.isAuthenticated;
+  const cold = store.state.coldStorage.isAuthenticated;
+  return auth && cold ? 'Cold Storage Ready' : 'Storage Initializing';
 });
 
-
-// AIDEV-NOTE: Computed property for threshold display label
-const thresholdLabel = computed(() => {
-  const value = searchThreshold.value;
-  if (value <= 0.2) return 'Very Fuzzy';
-  if (value <= 0.4) return 'Fuzzy';
-  if (value <= 0.6) return 'Balanced';
-  if (value <= 0.8) return 'Sensitive';
-  return 'Very Sensitive';
+// Filter out hidden documents
+const filteredResults = computed(() => {
+  return results.value.filter(result => {
+    const documentId = result.document?.id || result.id;
+    return !hiddenDocuments.value.has(documentId);
+  });
 });
 
-// AIDEV-NOTE: Count active metadata filters
-const activeFilterCount = computed(() => {
-  let count = 0;
-  const filters = metadataFilters.value;
-  
-  // Count array filters that have selections
-  if (filters.lpaNames.length > 0) count++;
-  if (filters.caseTypes.length > 0) count++;
-  if (filters.caseOfficers.length > 0) count++;
-  if (filters.procedures.length > 0) count++;
-  if (filters.statuses.length > 0) count++;
-  if (filters.decisionOutcomes.length > 0) count++;
-  
-  // Count date filters that are enabled
-  Object.values(filters.dateFilters).forEach(dateFilter => {
-    if (dateFilter.enabled) count++;
+// Environment-based functionality
+const isImportEnabled = computed(() => getIsImportEnabled());
+
+// Methods
+const performSearch = async () => {
+  console.log('[UnifiedSearchView] ===== SEARCH REQUEST START =====');
+  console.log('[UnifiedSearchView] Search request details:', {
+    query: searchQuery.value.trim(),
+    queryLength: searchQuery.value.trim().length,
+    generalAuth: isGeneralAuthenticated.value,
+    coldStorageAuth: isColdStorageAuthenticated.value,
+    combinedAuth: isAuthenticated.value
   });
   
-  // Count linked cases filter if set
-  if (filters.hasLinkedCases !== undefined) count++;
-  
-  return count;
-});
-
-// AIDEV-NOTE: Computed property for comprehensive search summary statistics - use filtered results for accurate counts
-const searchSummary = computed((): SearchSummaryData => {
-  const visibleResults = filteredResults.value;
-  const uniqueDocuments = new Set(visibleResults.map(r => r.document.id)).size;
-  const totalIndexedDocuments = 0; // Cold storage only, no legacy search engine
-  
-  // Decision breakdown
-  const decisionCounts = { allowed: 0, dismissed: 0, unknown: 0 };
-  const lpas = new Set<string>();
-  const inspectors = new Set<string>();
-  const decisionDates: Date[] = [];
-  
-  let totalScore = 0;
-  let highQualityCount = 0;
-  
-  visibleResults.forEach(result => {
-    const decision = result.document.metadata?.decisionOutcome;
-    if (decision === 'Allowed') {
-      decisionCounts.allowed++;
-    } else if (decision === 'Dismissed') {
-      decisionCounts.dismissed++;
-    } else {
-      decisionCounts.unknown++;
-    }
-    
-    // LPA and Inspector tracking
-    if (result.document.metadata?.lpa && result.document.metadata.lpa !== 'NOT_FOUND') {
-      lpas.add(result.document.metadata.lpa);
-    }
-    if (result.document.metadata?.inspector && result.document.metadata.inspector !== 'NOT_FOUND') {
-      inspectors.add(result.document.metadata.inspector);
-    }
-    
-    // Date tracking
-    if (result.document.metadata?.decisionDate && result.document.metadata.decisionDate !== 'NOT_FOUND') {
-      const date = new Date(result.document.metadata.decisionDate);
-      if (!isNaN(date.getTime())) {
-        decisionDates.push(date);
-      }
-    }
-    
-    // Match quality
-    totalScore += result.overallScore;
-    if (result.overallScore < 0.3) { // Low score = high quality in fuzzy search
-      highQualityCount++;
-    }
-  });
-  
-  // Date range calculation
-  const sortedDates = decisionDates.sort((a, b) => a.getTime() - b.getTime());
-  const dateRange = {
-    start: sortedDates.length > 0 ? sortedDates[0].toLocaleDateString('en-GB') : null,
-    end: sortedDates.length > 0 ? sortedDates[sortedDates.length - 1].toLocaleDateString('en-GB') : null
-  };
-  
-  return {
-    totalResults: visibleResults.length,
-    uniqueDocuments,
-    totalIndexedDocuments,
-    searchTime: searchTime.value,
-    decisionBreakdown: {
-      allowed: decisionCounts.allowed,
-      dismissed: decisionCounts.dismissed,
-      unknown: decisionCounts.unknown,
-      total: decisionCounts.allowed + decisionCounts.dismissed + decisionCounts.unknown
-    },
-    matchQuality: {
-      averageScore: visibleResults.length > 0 ? totalScore / visibleResults.length : 0,
-      highQualityCount
-    },
-    planningInsights: {
-      uniqueLPAs: lpas.size,
-      uniqueInspectors: inspectors.size,
-      dateRange
-    },
-    // AIDEV-NOTE: Include applied filter information in search summary
-    appliedFilters: {
-      dateFilter: dateFilter.value.type !== 'all' ? dateFilter.value : undefined
-    }
-  };
-});
-
-onMounted(async () => {
-  // AIDEV-NOTE: Check authentication state first
-  try {
-    const authState = authService.getAuthState();
-    isAuthenticated.value = authState.isAuthenticated;
-    console.log('[UnifiedSearchView] Authentication state:', authState);
-    
-    // Update store authentication state
-    await store.auth.setAuthenticated(authState.isAuthenticated);
-    await store.auth.setInitialized(authState.isInitialized);
-  } catch (error) {
-    console.error('Failed to check authentication state:', error);
-  }
-  
-  // AIDEV-NOTE: Initialize cold storage through Vue store (simplified architecture)
-  try {
-    await store.coldStorage.initialize();
-    console.log('Cold storage initialized through store');
-    
-    // Initialize appeal import service with cold storage
-    const { getColdStorageService } = await import('@/stores/index');
-    const coldStorageService = await getColdStorageService();
-    await appealImportService.initialize(coldStorageService);
-    logImport('Appeal import service initialized with cold storage', {
-      coldStorageAvailable: true
-    }, 'UnifiedSearchView');
-    
-  } catch (error) {
-    console.error('Cold storage initialization failed:', error);
-    searchError.value = store.state.coldStorage.error || 'Cold storage initialization failed';
-    
-    // Try to initialize appeal import service without cold storage
-    try {
-      await appealImportService.initialize(null);
-      logImport('Appeal import service initialized without cold storage (fallback mode)', {}, 'UnifiedSearchView');
-    } catch (importError) {
-      console.error('Appeal import service initialization failed:', importError);
-    }
-  }
-  
-  // Cold storage is the only mode - check authentication requirement
-  if (!isAuthenticated.value) {
-    const shouldShowAuth = await checkColdStorageAuthRequirement();
-    if (shouldShowAuth) {
-      authenticationRequired.value = true;
-    }
-  }
-  
-  
-  // Set initial search threshold in store
-  store.search.setThreshold(searchThreshold.value);
-  
-  // Load initial data
-  await loadStats();
-  await loadSearchHistory();
-  await loadSavedSearches();
-  
-  // Check for initial search query from URL
-  const query = route.query.q as string;
-  if (query) {
-    searchQuery.value = query;
-    await performSearch();
-  }
-});
-
-async function loadStats() {
-  try {
-    // AIDEV-NOTE: Load stats from cold storage only
-    documentCount.value = store.state.coldStorage.stats.totalDocuments || 0;
-    indexedCount.value = store.state.coldStorage.stats.totalDocuments || 0; // All cold storage documents are searchable
-  } catch (error) {
-    console.error('Failed to load cold storage stats:', error);
-    documentCount.value = 0;
-    indexedCount.value = 0;
-  }
-}
-
-async function loadSearchHistory() {
-  await searchHistoryService.cleanupDuplicateSearchHistory();
-  recentSearches.value = await searchHistoryService.getSearchHistory();
-}
-
-async function loadSavedSearches() {
-  savedSearches.value = await searchHistoryService.getSavedSearches();
-}
-
-async function performSearch() {
-  if (!searchQuery.value.trim()) return;
-
-  // Clear previous errors
-  searchError.value = null;
-  
-  isLoading.value = true;
-  currentPage.value = 1;
-  // AIDEV-NOTE: expandedResults now handled by individual SearchResultCard components
-  // AIDEV-NOTE: Clear hidden documents for new search
-  hiddenDocuments.value.clear();
-  
-  // AIDEV-NOTE: Reset metadata filters for new search
-  resetMetadataFilters();
-
-  try {
-    // AIDEV-NOTE: Use store for unified search across cold storage
-    try {
-      // Check authentication for cold storage
-      if (!isAuthenticated.value) {
-        // Check if cold storage has encrypted data that requires authentication
-        const requiresAuth = await checkColdStorageAuthRequirement();
-        if (requiresAuth) {
-          console.log('[UnifiedSearchView] Cold storage search requires authentication');
-          authenticationRequired.value = true;
-          searchError.value = 'Authentication required for cold storage access. Please authenticate to continue.';
-          return;
-        }
-      }
-      
-      // Update store with current search filters
-      store.search.setDateFilter(dateFilter.value);
-      store.search.setThreshold(searchThreshold.value);
-      
-      // Perform unified search through store
-      await store.search.performUnifiedSearch(searchQuery.value.trim(), {
-        limit: 50
-      });
-      
-      // Get results from store
-      results.value = store.allSearchResults.value;
-      searchTime.value = store.state.search.performance.totalSearchTime;
-      
-      // AIDEV-NOTE: Update filter options from search results
-      filterOptions.value = extractFilterOptions(results.value);
-      
-      console.log(`Store search returned ${results.value.length} results in ${searchTime.value}ms`);
-    } catch (storeSearchError) {
-      console.error('Cold storage search failed:', storeSearchError);
-      throw new Error('Cold storage search unavailable');
-    }
-
-    // Update URL without triggering navigation
-    const queryParams: any = { q: searchQuery.value.trim() };
-    if (dateFilter.value.type !== 'all') {
-      queryParams.dateFilterType = dateFilter.value.type;
-      if (dateFilter.value.laterThan) {
-        queryParams.dateFilterFrom = dateFilter.value.laterThan;
-      }
-      if (dateFilter.value.earlierThan) {
-        queryParams.dateFilterTo = dateFilter.value.laterThan;
-      }
-    }
-    
-    await router.replace({
-      name: 'search',
-      query: queryParams
-    });
-    
-    // Track search in debug panel
-    trackSearchInDebugPanel();
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown search error';
-    console.error('Search failed:', error);
-    searchError.value = `Search failed: ${errorMessage}`;
-    results.value = [];
-  } finally {
-    isLoading.value = false;
-  }
-}
-
-
-function updateThreshold() {
-  // Update store threshold
-  store.search.setThreshold(searchThreshold.value);
-  
-  // Automatically re-run the search with new threshold
-  if (searchQuery.value.trim()) {
-    performSearch();
-  }
-}
-
-function updateDateFilter(type: DateFilter['type']) {
-  dateFilter.value.type = type;
-  
-  // Clear date inputs when switching to 'all'
-  if (type === 'all') {
-    dateFilter.value.laterThan = undefined;
-    dateFilter.value.earlierThan = undefined;
-  }
-  
-  applyDateFilter();
-}
-
-async function applyDateFilter() {
-  // Re-run search if there's a query
-  if (searchQuery.value.trim()) {
-    await performSearch();
-  }
-}
-
-function clearDateFilter() {
-  dateFilter.value = { type: 'all' };
-  applyDateFilter();
-}
-
-
-// AIDEV-NOTE: Import modal handlers
-function closeImportModal() {
-  if (!isImporting.value) {
-    showImportModal.value = false;
-    // Reset import progress
-    importProgress.value = {
-      stage: '',
-      message: '',
-      processed: 0,
-      total: 0,
-      errors: []
-    };
-  }
-}
-
-// AIDEV-NOTE: Start import process using AppealImportService
-async function startImport() {
-  // Check authentication for cold storage import
-  if (!isAuthenticated.value) {
-    console.log('[UnifiedSearchView] Cold storage import requires authentication');
-    authenticationRequired.value = true;
+  if (!searchQuery.value.trim()) {
+    console.log('[UnifiedSearchView] Search aborted: empty query');
     return;
   }
   
-  const timer = startTimer('appeal-cases-import');
+  if (!isAuthenticated.value) {
+    console.error('[UnifiedSearchView] ❌ SEARCH AUTHENTICATION FAILURE');
+    console.error('[UnifiedSearchView] Search blocked due to authentication requirements');
+    console.error('[UnifiedSearchView] Authentication state breakdown:', {
+      generalAuth: isGeneralAuthenticated.value,
+      coldStorageAuth: isColdStorageAuthenticated.value,
+      required: 'Both must be true for search to proceed'
+    });
+    
+    if (!isGeneralAuthenticated.value) {
+      console.error('[UnifiedSearchView] General app authentication missing - user needs to log in');
+    }
+    
+    if (!isColdStorageAuthenticated.value) {
+      console.error('[UnifiedSearchView] Cold storage authentication missing - encrypted batch access not available');
+    }
+    
+    return;
+  }
+
+  console.log('[UnifiedSearchView] ✓ Authentication verified, proceeding with search:', searchQuery.value);
   
-  logImport('Starting appeal cases import', {
-    batchSize: importSettings.value.batchSize,
-    concurrencyLimit: importSettings.value.concurrencyLimit,
-    authenticated: isAuthenticated.value,
-    timestamp: new Date().toISOString()
-  }, 'UnifiedSearchView');
-
-  logUI('Import modal transitioning to progress view', {
-    previousStage: 'configuration',
-    newStage: 'progress'
-  }, 'UnifiedSearchView');
-
-  isImporting.value = true;
-  importProgress.value = {
-    stage: 'Initializing',
-    message: 'Setting up import process...',
-    processed: 0,
-    total: 0,
-    errors: []
-  };
+  // Clear hidden documents for new search
+  hiddenDocuments.value.clear();
+  isLoading.value = true;
+  searchError.value = null;
+  searchStatusMessage.value = 'Initializing search...';
+  
+  const startTime = performance.now();
 
   try {
-    // Set up progress callback
-    appealImportService.setProgressCallback((progress: any) => {
+    // Perform search using store
+    searchStatusMessage.value = 'Searching documents...';
+    await store.performUnifiedSearch(
+      searchQuery.value,
+      { threshold: searchThreshold.value }
+    );
+
+    // Use the converted results from store (proper SearchResult structure)
+    results.value = store.allSearchResults.value;
+    searchTime.value = Math.round(performance.now() - startTime);
+    currentPage.value = 1; // Reset to first page
+    
+    // Save search to history after getting results
+    await searchHistoryService.addSearchHistory(searchQuery.value, results.value.length);
+    
+    console.log(`[UnifiedSearchView] Search completed: ${results.value.length} results in ${searchTime.value}ms`);
+    
+    // Log successful search
+    logger.info('Search completed', {
+      query: searchQuery.value,
+      resultCount: results.value.length,
+      searchTime: searchTime.value,
+      threshold: searchThreshold.value
+    });
+
+  } catch (error) {
+    console.error('[UnifiedSearchView] Search failed:', error);
+    searchError.value = error instanceof Error ? error.message : 'Search failed';
+    results.value = [];
+    searchTime.value = Math.round(performance.now() - startTime);
+    
+    // Log search error
+    logger.error('Search failed', {
+      query: searchQuery.value,
+      error: searchError.value,
+      searchTime: searchTime.value
+    });
+  } finally {
+    isLoading.value = false;
+    searchStatusMessage.value = '';
+  }
+};
+
+const startImport = async (config: { mode: string; batchSize: number }) => {
+  console.log('[UnifiedSearchView] Starting import with config:', config);
+  
+  if (!isAuthenticated.value) {
+    logger.error('Cannot start import: not authenticated');
+    return;
+  }
+  
+  isImporting.value = true;
+  
+  try {
+    // Initialize the appeal import service with cold storage
+    const coldStorageService = store.coldStorage;
+    await appealImportService.initialize(coldStorageService);
+    
+    // Set up progress callback to update UI
+    appealImportService.setProgressCallback((progress) => {
       importProgress.value = {
-        stage: progress.stage || 'Processing',
-        message: progress.message || 'Processing...',
-        processed: progress.processed || 0,
-        total: progress.total || 0,
-        errors: progress.errors || []
+        stage: progress.stage,
+        message: progress.message,
+        processed: progress.processed,
+        total: progress.total,
+        errors: progress.errors
       };
     });
-
-    // Start import with configured settings
-    const importStats = await appealImportService.startImport({
-      batchSize: importSettings.value.batchSize,
-      concurrencyLimit: importSettings.value.concurrencyLimit,
-      useFileSystem: false // Always use cold storage
+    
+    // Configure import options based on mode
+    const importOptions = {
+      batchSize: config.batchSize,
+      concurrencyLimit: config.mode === 'sample' ? 3 : 5,
+      useFileSystem: false // Use cold storage mode
+    };
+    
+    // Start the import process
+    console.log('[UnifiedSearchView] Starting appeal import with options:', importOptions);
+    const importStats = await appealImportService.startImport(importOptions);
+    
+    console.log('[UnifiedSearchView] Import completed successfully:', importStats);
+    logger.info('Import completed successfully', {
+      mode: config.mode,
+      batchSize: config.batchSize,
+      stats: importStats
     });
     
-    logImport('Import completed successfully', {
-      importStats,
-      successRate: importStats.totalStored > 0 ? 
-        `${((importStats.totalStored / (importStats.totalStored + importStats.errors)) * 100).toFixed(1)}%` : '0%'
-    }, 'UnifiedSearchView');
-
-    // Refresh stats after import
-    const statsTimer = startTimer('refresh-stats-after-import');
-    await loadStats();
-    statsTimer.end({ action: 'refresh-stats' });
+    // Close modal and refresh document counts
+    showImportModal.value = false;
+    await updateDocumentCounts();
     
-    // Update cold storage stats after import
-    try {
-      await store.coldStorage.loadCacheStats();
-      logUI('Cold storage stats refreshed after import', {
-        newStats: store.state.coldStorage.stats
-      }, 'UnifiedSearchView');
-    } catch (error) {
-      console.warn('Failed to refresh cold storage stats:', error);
-    }
+    // Log successful import
+    logger.info('Document counts updated after import', {
+      documentCount: documentCount.value,
+      indexedCount: indexedCount.value
+    });
     
-    logUI('Import completed, closing modal in 2 seconds', {
-      delayMs: 2000,
-      finalStage: importProgress.value.stage,
-      importStats
-    }, 'UnifiedSearchView');
-    
-    // Close modal after brief delay
-    setTimeout(() => {
-      closeImportModal();
-    }, 2000);
-
   } catch (error) {
-    logger.importError('Import operation failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      processedBeforeFailure: importProgress.value.processed
-    }, 'UnifiedSearchView');
+    console.error('[UnifiedSearchView] Import failed:', error);
+    logger.error('Import failed', {
+      mode: config.mode,
+      batchSize: config.batchSize,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     
-    importProgress.value.stage = 'Error';
-    importProgress.value.message = `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
-    importProgress.value.errors.push(`Fatal error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    importProgress.value.errors.push(`Import failed: ${errorMessage}`);
+    
+    // Keep modal open to show error state
   } finally {
     isImporting.value = false;
-    timer.end({
-      finalProcessed: importProgress.value.processed,
-      finalErrors: importProgress.value.errors.length
+  }
+};
+
+const cancelImport = async () => {
+  console.log('[UnifiedSearchView] Import cancellation requested');
+  
+  try {
+    // Stop the import service
+    await appealImportService.stopImport();
+    logger.info('Import cancelled successfully');
+  } catch (error) {
+    console.error('[UnifiedSearchView] Error cancelling import:', error);
+    logger.error('Failed to cancel import', {
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
+  } finally {
+    isImporting.value = false;
+    showImportModal.value = false;
+    console.log('[UnifiedSearchView] Import cancelled');
   }
-}
+};
 
-
-
-
-// AIDEV-NOTE: formatFileSize and getDecisionColor functions moved to SearchResultCard component
-
-// AIDEV-NOTE: toggleExpandResult and highlightMatches functions moved to SearchResultCard component
-
-async function openDocument(document: any) {
+const viewDocument = (document: any) => {
+  console.log('[UnifiedSearchView] View document request:', document.id);
+  
+  // Set loading state
+  openingDocument.value = document.id;
+  
   try {
-    // Get the doc_link_span URL from document metadata
-    const linkUrl = document.metadata?.doc_link_span;
+    // Extract document URL from various possible fields
+    let documentUrl: string | null = null;
     
-    if (linkUrl && linkUrl !== 'NOT_FOUND') {
-      // Open the URL in a new tab
-      window.open(linkUrl, '_blank', 'noopener,noreferrer');
+    // Try different ways the URL might be stored
+    if (document.doc_link_span) {
+      documentUrl = document.doc_link_span;
+    } else if (document.url) {
+      documentUrl = document.url;
+    } else if (document.link) {
+      documentUrl = document.link;
+    } else if (document.metadata?.url) {
+      documentUrl = document.metadata.url;
+    } else if (document.metadata?.doc_link_span) {
+      documentUrl = document.metadata.doc_link_span;
+    }
+    
+    if (documentUrl) {
+      console.log('[UnifiedSearchView] Opening document URL:', documentUrl);
+      
+      // Ensure URL is properly formatted
+      let finalUrl = documentUrl;
+      if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+        finalUrl = `https://${finalUrl}`;
+      }
+      
+      // Open in new tab
+      window.open(finalUrl, '_blank', 'noopener,noreferrer');
+      
+      logger.info('Document opened successfully', {
+        documentId: document.id,
+        filename: document.filename,
+        url: finalUrl
+      });
+      
+      // Clear loading state after a short delay to show user the action succeeded
+      setTimeout(() => {
+        openingDocument.value = null;
+      }, 500);
     } else {
-      // Fallback if no URL is available
-      alert(`No document link available for ${document.filename}\n\nThe document may not have an associated online link.`);
+      // Document URL not available
+      console.warn('[UnifiedSearchView] Document URL not found for:', document.id);
+      logger.warn('Document URL not available', {
+        documentId: document.id,
+        filename: document.filename,
+        availableFields: Object.keys(document)
+      });
+      
+      // Show user-friendly error message using UserFriendlyError system
+      const error = UserFriendlyErrorFactory.application(
+        'Document Not Available',
+        'This document doesn\'t have an online version available. It may only exist in physical archives.',
+        {
+          operation: 'view-document',
+          component: 'UnifiedSearchView',
+          userAction: 'view document online'
+        }
+      );
+      console.error(error);
+      
+      // For now, show alert - in future this could integrate with a toast/notification system
+      alert(error.userMessage);
+      
+      // Clear loading state
+      openingDocument.value = null;
     }
   } catch (error) {
-    console.error('Failed to open document:', error);
-    alert(`Error opening document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('[UnifiedSearchView] Error opening document:', error);
+    logger.error('Failed to open document', {
+      documentId: document.id,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    // Show user-friendly error using UserFriendlyError system
+    const userError = UserFriendlyErrorFactory.application(
+      'Unable to Open Document',
+      'There was a problem opening the document. Please try again in a moment.',
+      {
+        operation: 'view-document',
+        component: 'UnifiedSearchView',
+        userAction: 'open document link',
+        technicalDetails: error instanceof Error ? error.message : 'Unknown error'
+      }
+    );
+    console.error(userError);
+    alert(userError.userMessage);
+  } finally {
+    // Clear loading state
+    openingDocument.value = null;
   }
-}
+};
 
-// AIDEV-NOTE: Hide document from current search results only (not permanently deleted)
-function hideDocument(docId: string) {
-  if (confirm('Are you sure you want to hide this document from the current search results?')) {
-    // Add to hidden documents set - document remains in IndexedDB and search engine
-    hiddenDocuments.value.add(docId);
-    
-    // Reset to first page if current page becomes empty
-    if (paginatedResults.value.length === 0 && currentPage.value > 1) {
-      currentPage.value = 1;
-    }
+const hideDocument = (documentId: string) => {
+  console.log('[UnifiedSearchView] Hide document:', documentId);
+  hiddenDocuments.value.add(documentId);
+  logger.info('Document hidden', { documentId, totalHidden: hiddenDocuments.value.size });
+};
+
+const handleDebugToggle = (show: boolean) => {
+  // Handle debug panel toggle
+  console.log('[UnifiedSearchView] Debug panel toggled:', show);
+};
+
+const showAuthenticationModal = () => {
+  // Call the global showAuthentication function defined in App.vue
+  if (typeof window !== 'undefined' && window.showAuthentication) {
+    window.showAuthentication(true); // Pass true to indicate this is for setup
   }
-}
+};
 
-// AIDEV-NOTE: Filter out hidden documents and apply metadata filters
-const filteredResults = computed(() => {
-  let filtered = results.value.filter(result => !hiddenDocuments.value.has(result.document.id));
-  
-  // Apply metadata filters
-  const filters = metadataFilters.value;
-  
-  filtered = filtered.filter(result => {
-    const metadata = result.document.metadata || {};
-    
-    // Helper function to get metadata value
-    const getMetadataValue = (field: string): string => {
-      const value = (metadata as any)?.[field];
-      if (value === undefined || value === null || value === '' || value === 'NOT_FOUND') {
-        return 'NOT_FOUND';
-      }
-      return String(value);
-    };
-    
-    // LPA Names filter
-    if (filters.lpaNames.length > 0) {
-      const lpaName = getMetadataValue('lpa_name');
-      if (lpaName === 'NOT_FOUND' || !filters.lpaNames.includes(lpaName)) {
-        return false;
-      }
-    }
-    
-    // Case Types filter
-    if (filters.caseTypes.length > 0) {
-      const caseType = getMetadataValue('case_type');
-      if (caseType === 'NOT_FOUND' || !filters.caseTypes.includes(caseType)) {
-        return false;
-      }
-    }
-    
-    // Case Officers filter
-    if (filters.caseOfficers.length > 0) {
-      const caseOfficer = getMetadataValue('case_officer');
-      if (caseOfficer === 'NOT_FOUND' || !filters.caseOfficers.includes(caseOfficer)) {
-        return false;
-      }
-    }
-    
-    // Procedures filter
-    if (filters.procedures.length > 0) {
-      const procedure = getMetadataValue('procedure');
-      if (procedure === 'NOT_FOUND' || !filters.procedures.includes(procedure)) {
-        return false;
-      }
-    }
-    
-    // Statuses filter
-    if (filters.statuses.length > 0) {
-      const status = getMetadataValue('status');
-      if (status === 'NOT_FOUND' || !filters.statuses.includes(status)) {
-        return false;
-      }
-    }
-    
-    // Decision Outcomes filter
-    if (filters.decisionOutcomes.length > 0) {
-      const decisionOutcome = getMetadataValue('decision_outcome');
-      if (decisionOutcome === 'NOT_FOUND' || !filters.decisionOutcomes.includes(decisionOutcome)) {
-        return false;
-      }
-    }
-    
-    // Linked Cases filter
-    if (filters.hasLinkedCases !== undefined) {
-      const linkedCaseCount = getMetadataValue('linked_case_count');
-      const hasLinkedCases = linkedCaseCount !== 'NOT_FOUND' && parseInt(linkedCaseCount) > 0;
-      if (hasLinkedCases !== filters.hasLinkedCases) {
-        return false;
-      }
-    }
-    
-    // TODO: Add date range filtering for the dateFilters when implemented
-    
-    return true;
-  });
-  
-  return filtered;
-});
-
-// Pagination computed properties
-const totalPages = computed(() => Math.ceil(filteredResults.value.length / resultsPerPage));
-const paginatedResults = computed(() => {
-  const start = (currentPage.value - 1) * resultsPerPage;
-  const end = start + resultsPerPage;
-  return filteredResults.value.slice(start, end);
-});
-
-// Error handling functions
-
-function retrySearch() {
-  searchError.value = null;
-  performSearch();
-}
-
-function clearError() {
-  searchError.value = null;
-}
-
-// Helper function for percentage calculation
-function getPercentage(value: number, total: number): string {
-  if (total === 0) return '0';
-  return ((value / total) * 100).toFixed(1);
-}
-
-// AIDEV-NOTE: Extract unique values from search results for filter dropdowns
-function extractFilterOptions(searchResults: SearchResult[]): FilterOptions {
-  const sets = {
-    lpaNames: new Set<string>(),
-    caseTypes: new Set<string>(),
-    caseOfficers: new Set<string>(),
-    procedures: new Set<string>(),
-    statuses: new Set<string>(),
-    decisionOutcomes: new Set<string>()
-  };
-
-  searchResults.forEach(result => {
-    const metadata = result.document.metadata as any || {};
-    
-    // Extract and add non-empty values
-    const addValue = (set: Set<string>, value: any) => {
-      if (value && value !== 'NOT_FOUND' && typeof value === 'string' && value.trim() !== '') {
-        set.add(value.trim());
-      }
-    };
-
-    addValue(sets.lpaNames, metadata.lpa_name);
-    addValue(sets.caseTypes, metadata.case_type);
-    addValue(sets.caseOfficers, metadata.case_officer);
-    addValue(sets.procedures, metadata.procedure);
-    addValue(sets.statuses, metadata.status);
-    addValue(sets.decisionOutcomes, metadata.decision_outcome);
-  });
-
-  // Convert Sets to sorted arrays
-  return {
-    lpaNames: Array.from(sets.lpaNames).sort(),
-    caseTypes: Array.from(sets.caseTypes).sort(),
-    caseOfficers: Array.from(sets.caseOfficers).sort(),
-    procedures: Array.from(sets.procedures).sort(),
-    statuses: Array.from(sets.statuses).sort(),
-    decisionOutcomes: Array.from(sets.decisionOutcomes).sort()
-  };
-}
-
-// AIDEV-NOTE: Reset metadata filters to initial state
-function resetMetadataFilters() {
-  metadataFilters.value = {
-    lpaNames: [],
-    caseTypes: [],
-    caseOfficers: [],
-    procedures: [],
-    statuses: [],
-    dateFilters: {
-      startDate: { enabled: false },
-      questionnaireDue: { enabled: false },
-      statementDue: { enabled: false },
-      interestedPartyCommentsDue: { enabled: false },
-      finalCommentsDue: { enabled: false },
-      inquiryEvidenceDue: { enabled: false },
-      eventDate: { enabled: false }
-    },
-    decisionOutcomes: [],
-    hasLinkedCases: undefined
-  };
-}
-
-// AIDEV-NOTE: Clear all metadata filters
-function clearAllFilters() {
-  resetMetadataFilters();
-}
-
-// AIDEV-NOTE: Authentication handling for cold storage
-async function checkColdStorageAuthRequirement(): Promise<boolean> {
+const updateDocumentCounts = async () => {
   try {
-    // Check if cold storage has encrypted batches that require authentication
-    const storageInfo = store.state.coldStorage.stats;
-    return storageInfo.totalDocuments > 0; // Assume all cold storage requires auth
-  } catch (error) {
-    console.error('Failed to check cold storage auth requirement:', error);
-    return true; // Default to requiring authentication
-  }
-}
-
-
-async function authenticateForColdStorage() {
-  try {
-    // Use global authentication function from App.vue
-    const authState = authService.getAuthState();
+    console.log('[UnifiedSearchView] Updating document counts...');
+    console.log('[UnifiedSearchView] Cold storage state:', {
+      isAuthenticated: store.state.coldStorage.isAuthenticated,
+      isAvailable: store.state.coldStorage.isAvailable,
+      stats: store.state.coldStorage.stats,
+      storageIndex: store.state.coldStorage.storageIndex
+    });
     
-    if (authState.hasChallenge && !authState.isAuthenticated) {
-      // Password is set up but user isn't authenticated - show login
-      console.log('[UnifiedSearchView] Authentication challenge exists, user needs to login');
-      if (typeof window !== 'undefined' && window.showAuthentication) {
-        window.showAuthentication(true); // true = login mode
-      }
-    } else if (!authState.hasChallenge) {
-      // No password set up - show setup
-      console.log('[UnifiedSearchView] No authentication setup, user needs to create password');
-      if (typeof window !== 'undefined' && window.showAuthentication) {
-        window.showAuthentication(false); // false = setup mode
-      }
+    // Get counts from cold storage service directly if available
+    if (store.state.coldStorage.isAuthenticated && store.state.coldStorage.isAvailable) {
+      const storageInfo = await store.coldStorage.getStorageInfo();
+      console.log('[UnifiedSearchView] Cold storage info:', storageInfo);
+      
+      documentCount.value = storageInfo.totalDocuments || 0;
+      indexedCount.value = storageInfo.totalDocuments || 0; // For now, assume all documents are indexed
+      
+      console.log('[UnifiedSearchView] Document counts updated:', {
+        documentCount: documentCount.value,
+        indexedCount: indexedCount.value
+      });
+    } else {
+      // Fallback to store stats
+      const stats = store.state.coldStorage.stats;
+      documentCount.value = stats.totalDocuments || 0;
+      indexedCount.value = stats.totalDocuments || 0;
+      
+      console.log('[UnifiedSearchView] Document counts from store stats:', {
+        documentCount: documentCount.value,
+        indexedCount: indexedCount.value,
+        authenticated: store.state.coldStorage.isAuthenticated,
+        available: store.state.coldStorage.isAvailable
+      });
     }
-    
-    // Close the authentication required modal
-    authenticationRequired.value = false;
   } catch (error) {
-    console.error('Failed to authenticate for cold storage:', error);
-    searchError.value = 'Authentication failed. Please try again.';
+    console.error('[UnifiedSearchView] Failed to update document counts:', error);
   }
-}
+};
 
-// Debug panel methods
-function toggleDebugPanel() {
-  showDebugPanel.value = !showDebugPanel.value;
-  console.log('[UnifiedSearchView] Debug panel toggled:', showDebugPanel.value);
-}
-
-// Track search in debug panel when search completes
-function trackSearchInDebugPanel() {
-  if (debugPanel.value && searchQuery.value && searchTime.value > 0) {
-    const totalResults = results.value.length;
-    debugPanel.value.trackSearch(searchQuery.value, totalResults, searchTime.value);
+const loadFilterOptions = async () => {
+  try {
+    // Placeholder for future filter options loading
+    filterOptions.value = {
+      lpaNames: [],
+      caseTypes: [],
+      caseOfficers: [],
+      procedures: [],
+      statuses: [],
+      decisionOutcomes: []
+    };
+  } catch (error) {
+    console.error('[UnifiedSearchView] Failed to load filter options:', error);
   }
-}
+};
 
-// AIDEV-NOTE: getStorageTierBadge function moved to SearchResultCard component
+// Watchers
+watch(() => route.query.q, (newQuery) => {
+  if (typeof newQuery === 'string' && newQuery.trim()) {
+    searchQuery.value = newQuery.trim();
+    performSearch();
+  }
+}, { immediate: true });
 
-// AIDEV-NOTE: Global window declarations are defined in App.vue
+// Watch for authentication completion to update document counts
+watch(() => store.state.coldStorage.isAuthenticated, (isAuthenticated) => {
+  console.log('[UnifiedSearchView] Cold storage authentication changed:', isAuthenticated);
+  if (isAuthenticated) {
+    // Update document counts when authentication completes
+    updateDocumentCounts();
+  }
+}, { immediate: true });
+
+// Lifecycle
+onMounted(async () => {
+  console.log('[UnifiedSearchView] Component mounted');
+  
+  // Load initial data
+  await updateDocumentCounts();
+  await loadFilterOptions();
+  
+  // Check for query parameter
+  const queryParam = route.query.q;
+  if (typeof queryParam === 'string' && queryParam.trim()) {
+    searchQuery.value = queryParam.trim();
+    await performSearch();
+  }
+});
 </script>
-
-<style scoped>
-/* AIDEV-NOTE: Simplified component-specific styles using theme variables */
-/* Complex PrimeVue overrides moved to centralized theme system */
-
-/* Custom range slider styling for search sensitivity */
-.slider-dark::-webkit-slider-thumb {
-  appearance: none;
-  height: 24px;
-  width: 24px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-  cursor: pointer;
-  box-shadow: var(--shadow-md);
-  border: 2px solid var(--color-border-primary);
-}
-
-.slider-dark::-moz-range-thumb {
-  height: 24px;
-  width: 24px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-  cursor: pointer;
-  border: 2px solid var(--color-border-primary);
-  box-shadow: var(--shadow-md);
-}
-
-.slider-dark::-webkit-slider-track {
-  height: 12px;
-  border-radius: 6px;
-  background: linear-gradient(to right, var(--color-success), var(--color-warning), var(--color-error));
-  border: 1px solid var(--color-border-secondary);
-}
-
-.slider-dark::-moz-range-track {
-  height: 12px;
-  border-radius: 6px;
-  background: linear-gradient(to right, var(--color-success), var(--color-warning), var(--color-error));
-  border: 1px solid var(--color-border-secondary);
-}
-</style>

@@ -5,8 +5,27 @@
  * for cold storage batch processing and document decryption operations.
  */
 
-// AIDEV-NOTE: Memory usage thresholds and configuration
-const MEMORY_CONFIG = {
+// AIDEV-NOTE: Memory usage thresholds and configuration with proper typing
+export interface MemoryConfig {
+  // Memory thresholds in MB
+  WARNING_THRESHOLD: number;     // Show warning at 200MB
+  CRITICAL_THRESHOLD: number;    // Force cleanup at 300MB
+  CLEANUP_TARGET: number;        // Target memory after cleanup
+  
+  // Batch processing limits
+  MAX_CONCURRENT_BATCHES: number;  // Maximum batches in memory simultaneously
+  MAX_DECRYPTED_SIZE: number;     // Maximum MB of decrypted data to keep
+  
+  // Monitoring intervals
+  MONITORING_INTERVAL: number;  // Check memory every 5 seconds
+  CLEANUP_DELAY: number;        // Delay between cleanup operations
+  
+  // Performance monitoring
+  GC_FORCE_THRESHOLD: number;    // Force garbage collection at 250MB
+  PERFORMANCE_SAMPLE_SIZE: number; // Number of samples for averaging
+}
+
+export const MEMORY_CONFIG: MemoryConfig = {
   // Memory thresholds in MB
   WARNING_THRESHOLD: 200,     // Show warning at 200MB
   CRITICAL_THRESHOLD: 300,    // Force cleanup at 300MB
@@ -25,43 +44,141 @@ const MEMORY_CONFIG = {
   PERFORMANCE_SAMPLE_SIZE: 10 // Number of samples for averaging
 };
 
-class MemoryManager {
+export interface MemoryMeasurement {
+  value: number;
+  timestamp: Date;
+}
+
+export interface MemoryStats {
+  current: number;
+  peak: number;
+  lastMeasured: Date;
+  measurements: MemoryMeasurement[];
+}
+
+export interface TrackedResource {
+  data: any;
+  estimatedSize: number;
+  createdAt: Date;
+  lastAccessed: Date;
+}
+
+export interface DecryptedBatch {
+  data: any;
+  size: number;
+  createdAt: Date;
+  lastAccessed: Date;
+}
+
+export interface PerformanceMetrics {
+  cleanupOperations: number;
+  forcedCleanups: number;
+  gcForced: number;
+  avgCleanupTime: number;
+}
+
+export interface CleanupEvent {
+  type: 'cleanup';
+  memoryFreed: number;
+  timestamp: Date;
+  currentMemory: number;
+}
+
+export interface WarningEvent {
+  type: 'warning';
+  currentMemory: number;
+  threshold: number;
+  timestamp: Date;
+}
+
+export type MemoryEventListener<T = CleanupEvent | WarningEvent> = (event: T) => void;
+
+export interface MemoryStatsSummary {
+  current: number;
+  peak: number;
+  lastMeasured: Date;
+  
+  thresholds: {
+    warning: number;
+    critical: number;
+    target: number;
+  };
+  
+  resources: {
+    tracked: number;
+    decryptedBatches: number;
+    activeOperations: number;
+  };
+  
+  performance: PerformanceMetrics & {
+    isMonitoring: boolean;
+    hasMemoryAPI: boolean;
+  };
+}
+
+export interface MemoryTrendPoint {
+  value: number;
+  timestamp: Date;
+}
+
+// AIDEV-NOTE: Extend Window interface for memory API types
+declare global {
+  interface Window {
+    gc?: () => void;
+  }
+  
+  interface Performance {
+    memory?: {
+      usedJSHeapSize: number;
+      totalJSHeapSize: number;
+      jsHeapSizeLimit: number;
+    };
+    measureUserAgentSpecificMemory?: () => Promise<any>;
+  }
+  
+  interface Navigator {
+    deviceMemory?: number;
+  }
+}
+
+export class MemoryManager {
+  private isInitialized = false;
+  private isMonitoring = false;
+  private monitoringInterval: NodeJS.Timeout | null = null;
+  private hasMemoryAPI = false;
+  
+  // Memory tracking with proper typing
+  private memoryStats: MemoryStats = {
+    current: 0,
+    peak: 0,
+    lastMeasured: new Date(),
+    measurements: []
+  };
+  
+  // Tracked resources with proper typing
+  private trackedResources = new Map<string, TrackedResource>();
+  private decryptedBatches = new Map<string, DecryptedBatch>();
+  private activeOperations = new Set<string>();
+  
+  // Event listeners for cleanup with proper typing
+  private cleanupListeners = new Set<MemoryEventListener<CleanupEvent>>();
+  private warningListeners = new Set<MemoryEventListener<WarningEvent>>();
+  
+  // Performance tracking with proper typing
+  private performanceMetrics: PerformanceMetrics = {
+    cleanupOperations: 0,
+    forcedCleanups: 0,
+    gcForced: 0,
+    avgCleanupTime: 0
+  };
+  
   constructor() {
-    this.isInitialized = false;
-    this.isMonitoring = false;
-    this.monitoringInterval = null;
-    
-    // Memory tracking
-    this.memoryStats = {
-      current: 0,
-      peak: 0,
-      lastMeasured: new Date(),
-      measurements: []
-    };
-    
-    // Tracked resources
-    this.trackedResources = new Map();
-    this.decryptedBatches = new Map();
-    this.activeOperations = new Set();
-    
-    // Event listeners for cleanup
-    this.cleanupListeners = new Set();
-    this.warningListeners = new Set();
-    
-    // Performance tracking
-    this.performanceMetrics = {
-      cleanupOperations: 0,
-      forcedCleanups: 0,
-      gcForced: 0,
-      avgCleanupTime: 0
-    };
-    
     // Auto-initialize
     this.initialize();
   }
 
   // AIDEV-NOTE: Initialize memory manager with browser compatibility checks
-  async initialize() {
+  public async initialize(): Promise<void> {
     if (this.isInitialized) return;
     
     try {
@@ -90,7 +207,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Check browser memory API availability
-  checkMemoryAPIAvailability() {
+  private checkMemoryAPIAvailability(): boolean {
     try {
       return !!(
         performance.memory ||
@@ -104,7 +221,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Setup performance observer for memory measurements
-  setupPerformanceObserver() {
+  private setupPerformanceObserver(): void {
     try {
       if ('PerformanceObserver' in window) {
         const observer = new PerformanceObserver((list) => {
@@ -122,10 +239,22 @@ class MemoryManager {
     }
   }
 
+  // AIDEV-NOTE: Record performance metrics from PerformanceEntry
+  private recordPerformanceMetric(entry: PerformanceEntry): void {
+    // Handle performance entries related to memory operations
+    if (entry.name.includes('memory') || entry.name.includes('cleanup')) {
+      console.log('Memory performance metric:', {
+        name: entry.name,
+        duration: entry.duration,
+        startTime: entry.startTime
+      });
+    }
+  }
+
   // AIDEV-NOTE: Setup global error handlers for memory-related issues
-  setupErrorHandlers() {
-    // Listen for memory pressure events
-    if ('onmemory pressure' in window) {
+  private setupErrorHandlers(): void {
+    // Listen for memory pressure events (non-standard, browser-specific)
+    if ('onmemorypressure' in window) {
       window.addEventListener('memorypressure', () => {
         console.warn('Memory pressure detected, forcing cleanup');
         this.forceCleanup();
@@ -133,7 +262,7 @@ class MemoryManager {
     }
     
     // Listen for quota exceeded errors
-    window.addEventListener('error', (event) => {
+    window.addEventListener('error', (event: ErrorEvent) => {
       if (event.error && event.error.name === 'QuotaExceededError') {
         console.warn('Storage quota exceeded, cleaning up memory');
         this.forceCleanup();
@@ -142,7 +271,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Start continuous memory monitoring
-  startMonitoring() {
+  public startMonitoring(): void {
     if (this.isMonitoring) return;
     
     this.isMonitoring = true;
@@ -154,7 +283,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Stop memory monitoring
-  stopMonitoring() {
+  public stopMonitoring(): void {
     if (!this.isMonitoring) return;
     
     this.isMonitoring = false;
@@ -167,7 +296,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Get current memory usage in MB
-  getCurrentMemoryUsage() {
+  public getCurrentMemoryUsage(): number {
     try {
       if (performance.memory) {
         // Chrome/Edge - most accurate
@@ -188,19 +317,19 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Estimate memory usage when exact measurement unavailable
-  estimateMemoryUsage() {
+  private estimateMemoryUsage(): number {
     let estimate = 0;
     
     // Base application memory
     estimate += 50; // Base Vue app + libraries
     
     // Count tracked resources
-    for (const [id, resource] of this.trackedResources) {
+    for (const [_, resource] of this.trackedResources) {
       estimate += resource.estimatedSize || 0;
     }
     
     // Count decrypted batches
-    for (const [batchId, batch] of this.decryptedBatches) {
+    for (const [_, batch] of this.decryptedBatches) {
       estimate += batch.size || 0;
     }
     
@@ -208,7 +337,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Manual memory estimation based on tracked objects
-  getManualMemoryEstimate() {
+  private getManualMemoryEstimate(): number {
     const memorySnapshot = {
       trackedResources: this.trackedResources.size * 0.1, // 100KB per resource estimate
       decryptedBatches: Array.from(this.decryptedBatches.values())
@@ -224,7 +353,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Check memory usage and trigger cleanup if needed
-  async checkMemoryUsage() {
+  private async checkMemoryUsage(): Promise<void> {
     const currentMemory = this.getCurrentMemoryUsage();
     const timestamp = new Date();
     
@@ -263,7 +392,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Track a resource for memory management
-  trackResource(id, resource, estimatedSizeMB = 1) {
+  public trackResource(id: string, resource: any, estimatedSizeMB = 1): void {
     this.trackedResources.set(id, {
       data: resource,
       estimatedSize: estimatedSizeMB,
@@ -275,7 +404,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Track decrypted batch data
-  trackDecryptedBatch(batchId, data, sizeMB) {
+  public trackDecryptedBatch(batchId: string, data: any, sizeMB: number): void {
     // Enforce maximum concurrent batches
     if (this.decryptedBatches.size >= MEMORY_CONFIG.MAX_CONCURRENT_BATCHES) {
       this.cleanupOldestBatch();
@@ -292,7 +421,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Access tracked resource and update last accessed time
-  accessResource(id) {
+  public accessResource(id: string): any {
     const resource = this.trackedResources.get(id);
     if (resource) {
       resource.lastAccessed = new Date();
@@ -302,7 +431,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Access decrypted batch and update last accessed time
-  accessDecryptedBatch(batchId) {
+  public accessDecryptedBatch(batchId: string): any {
     const batch = this.decryptedBatches.get(batchId);
     if (batch) {
       batch.lastAccessed = new Date();
@@ -312,23 +441,23 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Untrack and cleanup specific resource
-  untrackResource(id) {
-    const resource = this.trackedResources.get(id);
+  public untrackResource(resourceId: string): boolean {
+    const resource = this.trackedResources.get(resourceId);
     if (resource) {
       // Clear the data reference
       if (resource.data && typeof resource.data === 'object') {
         this.secureWipeObject(resource.data);
       }
       
-      this.trackedResources.delete(id);
-      console.log(`Untracked resource: ${id}`);
+      this.trackedResources.delete(resourceId);
+      console.log(`Untracked resource: ${resourceId}`);
       return true;
     }
     return false;
   }
 
   // AIDEV-NOTE: Untrack and cleanup decrypted batch
-  untrackDecryptedBatch(batchId) {
+  public untrackDecryptedBatch(batchId: string): boolean {
     const batch = this.decryptedBatches.get(batchId);
     if (batch) {
       // Secure wipe of decrypted data
@@ -342,7 +471,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Secure wipe of sensitive data
-  secureWipeObject(obj) {
+  private secureWipeObject(obj: any): void {
     try {
       if (obj && typeof obj === 'object') {
         if (Array.isArray(obj)) {
@@ -369,13 +498,13 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Light cleanup - remove least recently used resources
-  async performLightCleanup() {
+  public async performLightCleanup(): Promise<void> {
     const startTime = performance.now();
     let cleanedMemory = 0;
     
     // Sort resources by last accessed time (oldest first)
     const resources = Array.from(this.trackedResources.entries())
-      .sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+      .sort((a, b) => a[1].lastAccessed.getTime() - b[1].lastAccessed.getTime());
     
     // Remove oldest 25% of resources
     const toRemove = Math.max(1, Math.floor(resources.length * 0.25));
@@ -399,7 +528,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Force cleanup - aggressive memory reclamation
-  async forceCleanup() {
+  public async forceCleanup(): Promise<void> {
     const startTime = performance.now();
     let cleanedMemory = 0;
     
@@ -411,7 +540,7 @@ class MemoryManager {
     
     // Clear all but the most recent decrypted batch
     const batches = Array.from(this.decryptedBatches.entries())
-      .sort((a, b) => b[1].lastAccessed - a[1].lastAccessed);
+      .sort((a, b) => b[1].lastAccessed.getTime() - a[1].lastAccessed.getTime());
     
     // Keep only the most recently accessed batch
     for (let i = 1; i < batches.length; i++) {
@@ -442,9 +571,9 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Clean up oldest decrypted batch
-  cleanupOldestBatch() {
+  private cleanupOldestBatch(): void {
     const batches = Array.from(this.decryptedBatches.entries())
-      .sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+      .sort((a, b) => a[1].lastAccessed.getTime() - b[1].lastAccessed.getTime());
     
     if (batches.length > 0) {
       const [oldestBatchId] = batches[0];
@@ -453,7 +582,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Force garbage collection if available
-  forceGarbageCollection() {
+  private forceGarbageCollection(): void {
     try {
       if (window.gc) {
         window.gc();
@@ -466,7 +595,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Update average cleanup time metric
-  updateAverageCleanupTime(duration) {
+  private updateAverageCleanupTime(duration: number): void {
     const currentAvg = this.performanceMetrics.avgCleanupTime;
     const count = this.performanceMetrics.cleanupOperations;
     
@@ -475,19 +604,19 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Register listener for cleanup events
-  onCleanup(listener) {
+  public onCleanup(listener: MemoryEventListener<CleanupEvent>): () => void {
     this.cleanupListeners.add(listener);
     return () => this.cleanupListeners.delete(listener);
   }
 
   // AIDEV-NOTE: Register listener for memory warnings
-  onMemoryWarning(listener) {
+  public onMemoryWarning(listener: MemoryEventListener<WarningEvent>): () => void {
     this.warningListeners.add(listener);
     return () => this.warningListeners.delete(listener);
   }
 
   // AIDEV-NOTE: Notify cleanup event listeners
-  notifyCleanupListeners(memoryFreed) {
+  private notifyCleanupListeners(memoryFreed: number): void {
     for (const listener of this.cleanupListeners) {
       try {
         listener({
@@ -503,7 +632,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Notify memory warning listeners
-  notifyWarningListeners(currentMemory) {
+  private notifyWarningListeners(currentMemory: number): void {
     for (const listener of this.warningListeners) {
       try {
         listener({
@@ -519,7 +648,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Get comprehensive memory statistics
-  getMemoryStats() {
+  public getMemoryStats(): MemoryStatsSummary {
     return {
       current: this.memoryStats.current,
       peak: this.memoryStats.peak,
@@ -546,7 +675,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Get memory usage trend over time
-  getMemoryTrend(minutes = 5) {
+  public getMemoryTrend(minutes = 5): MemoryTrendPoint[] {
     const cutoff = new Date(Date.now() - minutes * 60 * 1000);
     
     return this.memoryStats.measurements
@@ -558,7 +687,7 @@ class MemoryManager {
   }
 
   // AIDEV-NOTE: Cleanup and shutdown memory manager
-  destroy() {
+  public destroy(): void {
     this.stopMonitoring();
     
     // Clear all tracked resources
@@ -575,6 +704,3 @@ class MemoryManager {
 
 // AIDEV-NOTE: Create singleton instance
 export const memoryManager = new MemoryManager();
-
-// AIDEV-NOTE: Export class for testing
-export { MemoryManager, MEMORY_CONFIG };

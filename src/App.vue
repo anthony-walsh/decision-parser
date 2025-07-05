@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
-import { authService } from '@/services/AuthenticationService.js';
+import { authService } from '@/services/AuthenticationService';
 import { useStorageStore } from '@/stores';
 import AuthenticationSetup from '@/components/AuthenticationSetup.vue';
 
@@ -55,10 +55,10 @@ onMounted(async () => {
 });
 
 // AIDEV-NOTE: Authentication event handlers
-async function handleAuthenticationComplete(success: boolean) {
+async function handleAuthenticationComplete(success: boolean, password?: string) {
   console.log('[App] Authentication completed:', success);
   
-  if (success) {
+  if (success && password) {
     isAuthenticated.value = true;
     showAuthenticationSetup.value = false;
     
@@ -68,8 +68,7 @@ async function handleAuthenticationComplete(success: boolean) {
     // Authenticate cold storage if available
     try {
       console.log('[App] Starting cold storage authentication...');
-      const password = await authService.getUserPassword();
-      console.log('[App] Password retrieved successfully for cold storage authentication');
+      console.log('[App] Using provided password for cold storage authentication');
       
       await store.coldStorage.authenticateWithPassword(password);
       console.log('[App] Cold storage authenticated successfully');

@@ -264,7 +264,7 @@ const refreshStorageInfo = async () => {
   isRefreshing.value = true;
   try {
     // Reload cold storage info
-    await store.coldStorage.loadCacheStats();
+    await store.coldStorage.getCacheStats();
     console.log('[SearchDebugPanel] Storage info refreshed');
   } catch (error) {
     console.error('[SearchDebugPanel] Failed to refresh storage info:', error);

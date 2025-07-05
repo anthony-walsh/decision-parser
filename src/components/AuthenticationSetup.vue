@@ -217,7 +217,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useStorageStore } from '@/stores';
-import { authService } from '@/services/AuthenticationService.js';
+import { authService } from '@/services/AuthenticationService';
 
 // Component props
 interface Props {
@@ -230,7 +230,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Emits
 const emit = defineEmits<{
-  authenticationComplete: [success: boolean];
+  authenticationComplete: [success: boolean, password?: string];
   skipColdStorage: [];
   resetPassword: [];
 }>();
@@ -303,7 +303,7 @@ async function handleSubmit() {
       if (success) {
         console.log('[AuthenticationSetup] Authentication successful');
         await store.auth.setAuthenticated(true);
-        emit('authenticationComplete', true);
+        emit('authenticationComplete', true, password.value);
       } else {
         console.log('[AuthenticationSetup] Authentication failed - invalid password');
         error.value = 'Invalid password. Please try again.';
@@ -327,7 +327,7 @@ async function handleSubmit() {
         console.log('[AuthenticationSetup] Password setup successful');
         await store.auth.setAuthenticated(true);
         await store.auth.setInitialized(true);
-        emit('authenticationComplete', true);
+        emit('authenticationComplete', true, password.value);
       } else {
         console.log('[AuthenticationSetup] Password setup failed');
         error.value = 'Failed to setup authentication. Please try again.';

@@ -193,6 +193,23 @@ class Logger {
     this.log('ERROR', 'debug', message, data, source);
   }
 
+  // Standard logging interface methods (delegates to UI category by default)
+  debug(message: string, data?: any, source?: string) {
+    this.log('UI', 'debug', message, data, source);
+  }
+
+  info(message: string, data?: any, source?: string) {
+    this.log('UI', 'info', message, data, source);
+  }
+
+  warn(message: string, data?: any, source?: string) {
+    this.log('UI', 'warn', message, data, source);
+  }
+
+  error(message: string, data?: any, source?: string) {
+    this.log('UI', 'error', message, data, source);
+  }
+
   // Utility methods for performance timing
   startTimer(operation: string): { end: (data?: any) => void } {
     const startTime = performance.now();

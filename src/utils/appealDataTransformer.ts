@@ -32,12 +32,39 @@ export interface AppealCaseData {
   linked_case_count: number;
 }
 
-// AIDEV-NOTE: Cold storage document format (matches expected structure)
+// AIDEV-NOTE: Cold storage document format (matches test batch structure - flattened fields)
 export interface ColdStorageDocument {
   id: string;
   filename: string;
   content: string;
-  metadata: AppealCaseMetadata;
+  // All appeal fields at root level to match test batch format
+  case_type: string;
+  case_id: string;
+  start_date: string;
+  lpa_name: string;
+  questionnaire_due: string;
+  statement_due: string;
+  case_officer: string;
+  interested_party_comments_due: string;
+  procedure: string;
+  final_comments_due: string;
+  status: string;
+  inquiry_evidence_due: string;
+  decision_outcome: string;
+  event_date: string;
+  link_status: string;
+  decision_date: string;
+  linked_case_count: number;
+  doc_link_span: string;
+  // Processing metadata nested for organization
+  metadata: {
+    extractedDate: string;
+    contentSummary?: string;
+    transformed_at: string;
+    source_type: 'appeal_decision_letter';
+    content_length: number;
+    has_pdf_content: boolean;
+  };
 }
 
 // AIDEV-NOTE: Metadata structure preserving all appeal-specific fields
@@ -159,61 +186,55 @@ export function transformAppealCase(appealData: AppealCaseData): TransformationR
     };
   }
 
-  // Create metadata object
-  const metadata: AppealCaseMetadata = {
-    // Core appeal information
-    case_id: appealData.case_id,
-    case_type: appealData.case_type || 'Unknown',
-    decision_outcome: appealData.decision_outcome || 'Unknown',
-    decision_date: appealData.decision_date || 'Unknown',
-    
-    // Administrative details
-    lpa_name: appealData.lpa_name || 'Unknown',
-    case_officer: appealData.case_officer || 'Unknown',
-    status: appealData.status || 'Unknown',
-    procedure: appealData.procedure || 'Unknown',
-    
-    // Timeline information
-    start_date: appealData.start_date || 'Unknown',
-    event_date: appealData.event_date || 'Unknown',
-    questionnaire_due: appealData.questionnaire_due || 'Unknown',
-    statement_due: appealData.statement_due || 'Unknown',
-    interested_party_comments_due: appealData.interested_party_comments_due || 'Unknown',
-    final_comments_due: appealData.final_comments_due || 'Unknown',
-    inquiry_evidence_due: appealData.inquiry_evidence_due || 'Unknown',
-    
-    // Source and link information
-    doc_link_span: appealData.doc_link_span || '',
-    link_status: appealData.link_status || 'Unknown',
-    linked_case_count: appealData.linked_case_count || 0,
-    
-    // Processing metadata
-    transformed_at: new Date().toISOString(),
-    source_type: 'appeal_decision_letter',
-    content_length: appealData.content?.length || 0,
-    has_pdf_content: !!(appealData.content && appealData.content.length > 0)
-  };
-
-  // Create the transformed document
+  // Create the transformed document with flattened structure to match test batch format
   const document: ColdStorageDocument = {
     id: appealData.case_id,
     filename,
     content: appealData.content || '',
-    metadata
+    
+    // All appeal fields at root level (matches test batch format)
+    case_type: appealData.case_type || 'Planning Appeal',
+    case_id: appealData.case_id,
+    start_date: appealData.start_date || 'NOT_FOUND',
+    lpa_name: appealData.lpa_name || 'NOT_FOUND',
+    questionnaire_due: appealData.questionnaire_due || 'NOT_FOUND',
+    statement_due: appealData.statement_due || 'NOT_FOUND',
+    case_officer: appealData.case_officer || 'NOT_FOUND',
+    interested_party_comments_due: appealData.interested_party_comments_due || 'NOT_FOUND',
+    procedure: appealData.procedure || 'NOT_FOUND',
+    final_comments_due: appealData.final_comments_due || 'NOT_FOUND',
+    status: appealData.status || 'NOT_FOUND',
+    inquiry_evidence_due: appealData.inquiry_evidence_due || 'NOT_FOUND',
+    decision_outcome: appealData.decision_outcome || 'NOT_FOUND',
+    event_date: appealData.event_date || 'NOT_FOUND',
+    link_status: appealData.link_status || 'NOT_FOUND',
+    decision_date: appealData.decision_date || 'NOT_FOUND',
+    linked_case_count: appealData.linked_case_count || 0,
+    doc_link_span: appealData.doc_link_span || '',
+    
+    // Processing metadata nested for organization
+    metadata: {
+      extractedDate: new Date().toISOString(),
+      contentSummary: `${appealData.case_type || 'Appeal'} - ${appealData.decision_outcome || 'Decision'}`,
+      transformed_at: new Date().toISOString(),
+      source_type: 'appeal_decision_letter',
+      content_length: appealData.content?.length || 0,
+      has_pdf_content: !!(appealData.content && appealData.content.length > 0)
+    }
   };
 
   timer.end({ 
     success: true, 
     warnings: warnings.length,
-    content_length: metadata.content_length 
+    content_length: document.metadata.content_length 
   });
 
   logTransform('Transformation completed successfully', {
     case_id: appealData.case_id,
     filename,
-    content_length: metadata.content_length,
+    content_length: document.metadata.content_length,
     warnings_count: warnings.length,
-    has_decision_outcome: metadata.decision_outcome !== 'Unknown'
+    has_decision_outcome: document.decision_outcome !== 'NOT_FOUND'
   }, 'transformAppealCase');
 
   return {
@@ -367,10 +388,6 @@ export function validateColdStorageDocument(document: ColdStorageDocument): { va
     errors.push('Document metadata is required');
   } else {
     // Check metadata structure
-    if (!document.metadata.case_id) {
-      errors.push('Metadata case_id is required');
-    }
-    
     if (!document.metadata.source_type) {
       errors.push('Metadata source_type is required');
     }
@@ -380,9 +397,14 @@ export function validateColdStorageDocument(document: ColdStorageDocument): { va
     }
   }
 
-  // Check ID matches metadata case_id
-  if (document.id && document.metadata?.case_id && document.id !== document.metadata.case_id) {
-    errors.push('Document ID must match metadata case_id');
+  // Check case_id at root level
+  if (!document.case_id) {
+    errors.push('case_id is required at document root level');
+  }
+
+  // Check ID matches case_id
+  if (document.id && document.case_id && document.id !== document.case_id) {
+    errors.push('Document ID must match case_id');
   }
 
   const valid = errors.length === 0;

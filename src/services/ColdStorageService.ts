@@ -14,36 +14,145 @@
 import { memoryManager } from './MemoryManager.js';
 import { performanceMonitor } from './PerformanceMonitor.js';
 import { browserResourceManager } from '../utils/BrowserResourceManager.js';
+import type { Document, ColdStorageSearchResult } from '../types/index.js';
+
+// AIDEV-NOTE: Enhanced TypeScript interfaces for cold storage operations
+export interface ColdStorageWorkerState {
+  status: 'not_initialized' | 'initializing' | 'ready' | 'failed';
+  lastHeartbeat: number | null;
+  initializationStart: number | null;
+  initializationDuration: number | null;
+  errorCount: number;
+  lastError: {
+    message: string;
+    timestamp: string;
+  } | null;
+}
+
+export interface DecryptedBatchInfo {
+  data: any;
+  size: number;
+  createdAt: Date;
+  lastAccessed: Date;
+}
+
+export interface StorageIndex {
+  totalDocuments: number;
+  batches: Array<{
+    batchId: string;
+    documentCount: number;
+    size: number;
+    dateRange: {
+      start: string;
+      end: string;
+    };
+  }>;
+  error?: string;
+}
+
+export interface ColdStorageSearchOptions {
+  limit?: number;
+  offset?: number;
+  sortBy?: 'relevance' | 'date';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface ColdStorageSearchResponse {
+  results: ColdStorageSearchResult[];
+  total: number;
+  query: string;
+  batchesSearched: number;
+  limited?: boolean;
+  error?: string;
+}
+
+export interface ColdStorageProgressCallback {
+  (progress: {
+    type: 'progress';
+    message: string;
+    totalBatches: number;
+    completedBatches: number;
+    partialResults: ColdStorageSearchResult[];
+  }): void;
+}
+
+export interface BatchMetadata {
+  keywords?: string[];
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+  documentCount?: number;
+  created?: string;
+  [key: string]: any;
+}
+
+export interface ColdStorageServiceState {
+  isInitialized: boolean;
+  isAuthenticated: boolean;
+  hasWorker: boolean;
+  hasStorageIndex: boolean;
+  totalBatches: number;
+  pendingMessages: number;
+  activeSearches: number;
+  workerState: ColdStorageWorkerState;
+}
+
+export interface ColdStorageWorkerMessage {
+  type: string;
+  id: string;
+  payload: any;
+}
+
+export interface PendingMessage {
+  resolve: (value: any) => void;
+  reject: (error: Error) => void;
+  timeout: NodeJS.Timeout;
+}
+
+export interface ColdStorageServiceOptions {
+  maxCacheSize?: number;
+  messagetTimeout?: number;
+  cleanupInterval?: number;
+}
 
 export class ColdStorageService {
-  constructor() {
-    this.worker = null;
-    this.isInitialized = false;
-    this.isAuthenticated = false;
-    this.messageId = 0;
-    this.pendingMessages = new Map();
-    this.storageIndex = null;
-    this.searchCallbacks = new Map();
-    
-    // AIDEV-NOTE: Worker lifecycle tracking
-    this.workerState = {
-      status: 'not_initialized', // not_initialized, initializing, ready, failed
-      lastHeartbeat: null,
-      initializationStart: null,
-      initializationDuration: null,
-      errorCount: 0,
-      lastError: null
-    };
-    
-    // AIDEV-NOTE: Memory management integration
-    this.decryptedBatches = new Map(); // Track decrypted batches locally
-    this.memoryCleanupTimeout = null;
-    this.performanceMetrics = {
-      searchOperations: 0,
-      totalSearchTime: 0,
-      decryptionOperations: 0,
-      totalDecryptionTime: 0
-    };
+  private worker: Worker | null = null;
+  private isInitialized = false;
+  private isAuthenticated = false;
+  private messageId = 0;
+  private pendingMessages = new Map<string, PendingMessage>();
+  public storageIndex: StorageIndex | null = null;
+  private searchCallbacks = new Map<string, ColdStorageProgressCallback>();
+  private error?: string;
+  
+  // AIDEV-NOTE: Worker lifecycle tracking with proper typing
+  private workerState: ColdStorageWorkerState = {
+    status: 'not_initialized',
+    lastHeartbeat: null,
+    initializationStart: null,
+    initializationDuration: null,
+    errorCount: 0,
+    lastError: null
+  };
+  
+  // AIDEV-NOTE: Memory management integration with proper typing
+  private decryptedBatches = new Map<string, DecryptedBatchInfo>();
+  private memoryCleanupTimeout: NodeJS.Timeout | null = null;
+  private performanceMetrics = {
+    searchOperations: 0,
+    totalSearchTime: 0,
+    decryptionOperations: 0,
+    totalDecryptionTime: 0
+  };
+  
+  // Configuration options
+  private readonly messageTimeout: number;
+  private readonly cleanupInterval: number;
+  
+  constructor(options: ColdStorageServiceOptions = {}) {
+    this.messageTimeout = options.messagetTimeout || 60000; // 60 seconds
+    this.cleanupInterval = options.cleanupInterval || 5 * 60 * 1000; // 5 minutes
     
     // Setup memory management listeners
     this.setupMemoryManagement();
@@ -53,7 +162,7 @@ export class ColdStorageService {
    * Setup memory management integration
    * AIDEV-NOTE: Integrates with MemoryManager for automatic cleanup
    */
-  setupMemoryManagement() {
+  private setupMemoryManagement(): void {
     // Listen for memory warnings
     memoryManager.onMemoryWarning((data) => {
       console.warn('Memory warning received in ColdStorageService:', data);
@@ -73,7 +182,7 @@ export class ColdStorageService {
    * Perform memory cleanup for cold storage operations
    * AIDEV-NOTE: Cleanup decrypted batches and notify MemoryManager
    */
-  async performMemoryCleanup() {
+  private async performMemoryCleanup(): Promise<void> {
     console.log('Performing cold storage memory cleanup');
     
     const startTime = performance.now();
@@ -81,7 +190,7 @@ export class ColdStorageService {
     
     // Get least recently used batches
     const sortedBatches = Array.from(this.decryptedBatches.entries())
-      .sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+      .sort((a, b) => a[1].lastAccessed.getTime() - b[1].lastAccessed.getTime());
     
     // Clean up oldest 50% of batches
     const toClean = Math.max(1, Math.floor(sortedBatches.length * 0.5));
@@ -113,7 +222,7 @@ export class ColdStorageService {
    * Schedule periodic memory cleanup
    * AIDEV-NOTE: Automatic cleanup every 5 minutes
    */
-  scheduleMemoryCleanup() {
+  private scheduleMemoryCleanup(): void {
     if (this.memoryCleanupTimeout) {
       clearTimeout(this.memoryCleanupTimeout);
     }
@@ -121,17 +230,17 @@ export class ColdStorageService {
     this.memoryCleanupTimeout = setTimeout(() => {
       this.performMemoryCleanup();
       this.scheduleMemoryCleanup(); // Reschedule
-    }, 5 * 60 * 1000); // 5 minutes
+    }, this.cleanupInterval);
   }
 
   /**
    * Track decrypted batch in memory manager
    * AIDEV-NOTE: Register batch with MemoryManager for tracking
    */
-  trackDecryptedBatch(batchId, data, sizeMB) {
+  public trackDecryptedBatch(batchId: string, data: any, sizeMB: number): void {
     console.log(`[ColdStorageService] Tracking decrypted batch: ${batchId} (${sizeMB}MB)`);
     
-    const batchInfo = {
+    const batchInfo: DecryptedBatchInfo = {
       data,
       size: sizeMB,
       createdAt: new Date(),
@@ -151,7 +260,7 @@ export class ColdStorageService {
    * Access decrypted batch and update access time
    * AIDEV-NOTE: Update last accessed time for LRU cleanup
    */
-  accessDecryptedBatch(batchId) {
+  public accessDecryptedBatch(batchId: string): any {
     console.log(`[ColdStorageService] Accessing decrypted batch: ${batchId}`);
     
     const batch = this.decryptedBatches.get(batchId);
@@ -170,7 +279,7 @@ export class ColdStorageService {
    * Initialize cold storage worker
    * AIDEV-NOTE: Enhanced with detailed logging for debugging
    */
-  async initialize() {
+  public async initialize(): Promise<void> {
     console.log('[ColdStorageService] Initializing cold storage service...');
     
     if (this.isInitialized) {
@@ -194,7 +303,7 @@ export class ColdStorageService {
       ];
       
       let workerCreated = false;
-      let lastError = null;
+      let lastError: Error | null = null;
       
       for (const workerPath of workerPaths) {
         try {
@@ -207,15 +316,15 @@ export class ColdStorageService {
             workerCreated = true;
             break;
           } catch (moduleError) {
-            console.log(`[ColdStorageService] ES module failed for ${workerPath}, trying classic:`, moduleError.message);
-            this.worker = new Worker(workerPath);
+            console.log(`[ColdStorageService] ES module failed for ${workerPath}, trying classic:`, (moduleError as Error).message);
+            this.worker = new Worker(workerPath as string);
             console.log(`[ColdStorageService] Worker created successfully with classic mode at: ${workerPath}`);
             workerCreated = true;
             break;
           }
         } catch (error) {
-          console.log(`[ColdStorageService] Worker path ${workerPath} failed:`, error.message);
-          lastError = error;
+          console.log(`[ColdStorageService] Worker path ${workerPath} failed:`, (error as Error).message);
+          lastError = error as Error;
         }
       }
       
@@ -224,12 +333,12 @@ export class ColdStorageService {
       }
 
       // Set up message handling
-      this.worker.onmessage = (event) => {
+      this.worker!.onmessage = (event: MessageEvent<ColdStorageWorkerMessage>) => {
         console.log('[ColdStorageService] Received worker message:', event.data.type);
         this.handleWorkerMessage(event.data);
       };
 
-      this.worker.onerror = (error) => {
+      this.worker!.onerror = (error: ErrorEvent) => {
         console.error('[ColdStorageService] Cold storage worker error:', {
           error: error,
           message: error.message || 'Unknown worker error',
@@ -267,7 +376,7 @@ export class ColdStorageService {
    * Authenticate worker with encryption key
    * AIDEV-NOTE: Enhanced with detailed logging for debugging authentication flow
    */
-  async authenticate(keyMaterial) {
+  public async authenticate(keyMaterial: CryptoKey): Promise<void> {
     console.log('[ColdStorageService] Starting authentication process...');
     
     if (!this.isInitialized) {
@@ -293,7 +402,7 @@ export class ColdStorageService {
     } catch (error) {
       console.error('[ColdStorageService] Cold storage authentication failed:', error);
       this.isAuthenticated = false;
-      throw new Error(`Authentication failed: ${error.message}`);
+      throw new Error(`Authentication failed: ${(error as Error).message}`);
     }
   }
 
@@ -301,33 +410,74 @@ export class ColdStorageService {
    * Authenticate with password for batch-specific key derivation
    * AIDEV-NOTE: New method for batch salt architecture
    */
-  async authenticateWithPassword(password) {
+  public async authenticateWithPassword(password: string): Promise<void> {
+    console.log('[ColdStorageService] ===== PASSWORD AUTHENTICATION START =====');
     console.log('[ColdStorageService] Starting password-based authentication process...');
+    console.log('[ColdStorageService] Authentication request details:', {
+      hasPassword: !!password,
+      passwordLength: password ? password.length : 0,
+      serviceInitialized: this.isInitialized,
+      workerExists: !!this.worker,
+      currentAuthState: this.isAuthenticated
+    });
     
     if (!this.isInitialized) {
+      console.error('[ColdStorageService] ❌ AUTHENTICATION PREREQUISITE FAILURE');
       console.error('[ColdStorageService] Cannot authenticate - service not initialized');
+      console.error('[ColdStorageService] Call initialize() before authenticateWithPassword()');
       throw new Error('Service not initialized');
     }
 
     try {
       console.log('[ColdStorageService] Sending password to worker for batch-specific key derivation...');
+      console.log('[ColdStorageService] Worker communication state:', {
+        hasWorker: !!this.worker,
+        pendingMessages: this.pendingMessages.size,
+        workerState: this.workerState
+      });
       
       // Send auth-init with password instead of keyMaterial
+      const authStartTime = performance.now();
+      console.log('[ColdStorageService] Calling sendMessage("auth-init", { password })...');
       const authResult = await this.sendMessage('auth-init', { password });
+      const authEndTime = performance.now();
+      
+      console.log(`[ColdStorageService] Worker authentication response received in ${(authEndTime - authStartTime).toFixed(2)}ms:`, {
+        success: authResult.success,
+        result: authResult
+      });
       
       if (authResult.success) {
+        const wasAuthenticated = this.isAuthenticated;
         this.isAuthenticated = true;
-        console.log('[ColdStorageService] Password authentication successful, service authenticated');
+        console.log(`[ColdStorageService] ✓ Password authentication successful, service state updated: ${wasAuthenticated} → ${this.isAuthenticated}`);
+        console.log('[ColdStorageService] Cold storage service now authenticated for encrypted batch access');
+        console.log('[ColdStorageService] ===== PASSWORD AUTHENTICATION SUCCESS =====');
       } else {
+        console.error('[ColdStorageService] ❌ WORKER AUTHENTICATION REJECTION');
         console.error('[ColdStorageService] Password authentication failed - worker rejected credentials');
+        console.error('[ColdStorageService] This could indicate:');
+        console.error('[ColdStorageService] 1. Incorrect password provided');
+        console.error('[ColdStorageService] 2. Worker encryption service initialization failed');
+        console.error('[ColdStorageService] 3. Worker internal error during authentication');
         this.isAuthenticated = false;
+        console.log('[ColdStorageService] ===== PASSWORD AUTHENTICATION FAILED =====');
         throw new Error('Password authentication failed - invalid credentials');
       }
       
     } catch (error) {
-      console.error('[ColdStorageService] Cold storage password authentication failed:', error);
+      console.error('[ColdStorageService] ===== PASSWORD AUTHENTICATION ERROR =====');
+      console.error('[ColdStorageService] Cold storage password authentication failed:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        errorType: error instanceof Error ? error.constructor.name : typeof error
+      });
+      
+      // Ensure authentication state is reset on failure
       this.isAuthenticated = false;
-      throw new Error(`Password authentication failed: ${error.message}`);
+      console.error(`[ColdStorageService] Service authentication state reset to: ${this.isAuthenticated}`);
+      console.log('[ColdStorageService] ===== PASSWORD AUTHENTICATION END =====');
+      throw new Error(`Password authentication failed: ${(error as Error).message}`);
     }
   }
 
@@ -335,7 +485,7 @@ export class ColdStorageService {
    * Load storage index from server
    * AIDEV-NOTE: Enhanced with detailed logging for storage index loading
    */
-  async loadStorageIndex() {
+  public async loadStorageIndex(): Promise<StorageIndex> {
     console.log('[ColdStorageService] Loading storage index from worker...');
     
     if (!this.isInitialized) {
@@ -348,21 +498,38 @@ export class ColdStorageService {
       const result = await this.sendMessage('load-storage-index');
       this.storageIndex = result.storageIndex;
       
-      console.log('[ColdStorageService] Storage index loaded:', {
-        totalDocuments: this.storageIndex.totalDocuments,
-        totalBatches: this.storageIndex.batches?.length || 0,
-        batchIds: this.storageIndex.batches?.map(b => b.batchId).slice(0, 5) || []
+      if (this.storageIndex) {
+        console.log('[ColdStorageService] Storage index loaded:', {
+          totalDocuments: this.storageIndex.totalDocuments,
+          totalBatches: this.storageIndex.batches?.length || 0,
+          batchIds: this.storageIndex.batches?.map(b => b.batchId).slice(0, 5) || []
+        });
+        
+        return this.storageIndex;
+      } else {
+        throw new Error('Storage index is null after loading');
+      }
+    } catch (error) {
+      console.error('[ColdStorageService] ❌ STORAGE INDEX LOADING FAILED');
+      console.error('[ColdStorageService] Failed to load storage index:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorType: error instanceof Error ? error.name : 'UnknownError',
+        stack: error instanceof Error ? error.stack : undefined
       });
       
-      return this.storageIndex;
-    } catch (error) {
-      console.warn('[ColdStorageService] Failed to load storage index:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        errorType: error instanceof Error ? error.name : 'UnknownError'
-      });
-      console.log('[ColdStorageService] Using empty storage index for graceful degradation');
-      // Don't throw - cold storage should degrade gracefully
-      this.storageIndex = { totalDocuments: 0, batches: [] };
+      // AIDEV-NOTE: Replace graceful degradation with explicit error reporting
+      // Storage index loading failure is a critical issue that should be surfaced to user
+      this.storageIndex = { totalDocuments: 0, batches: [], error: 'Storage index loading failed' };
+      
+      // Set service error state for UI to display
+      if (!this.error) {
+        this.error = `Storage index unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      }
+      
+      console.error('[ColdStorageService] Cold storage will be unavailable due to storage index failure');
+      console.error('[ColdStorageService] User will see error message instead of empty results');
+      
+      // Still return something to prevent crashes, but with error information
       return this.storageIndex;
     }
   }
@@ -371,11 +538,33 @@ export class ColdStorageService {
    * Search cold storage with progressive results
    * AIDEV-NOTE: Always require authentication for cold storage access (encrypted-only policy)
    */
-  async searchDocuments(query, options = {}, progressCallback = null) {
+  public async searchDocuments(
+    query: string, 
+    options: ColdStorageSearchOptions = {}, 
+    progressCallback: ColdStorageProgressCallback | null = null
+  ): Promise<ColdStorageSearchResponse> {
+    console.log('[ColdStorageService] ===== SEARCH DOCUMENTS START =====');
+    console.log(`[ColdStorageService] Search request: "${query}"`);
+    console.log('[ColdStorageService] Search prerequisites verification:', {
+      isAuthenticated: this.isAuthenticated,
+      isInitialized: this.isInitialized,
+      hasStorageIndex: !!this.storageIndex,
+      batchCount: this.storageIndex?.batches?.length || 0,
+      hasWorker: !!this.worker,
+      workerState: this.workerState.status
+    });
+    
     // AIDEV-NOTE: Always require authentication - cold storage is encrypted-only
     if (!this.isAuthenticated) {
+      console.error('[ColdStorageService] ❌ SEARCH AUTHENTICATION FAILURE');
+      console.error('[ColdStorageService] Search attempted without authentication');
+      console.error('[ColdStorageService] This indicates authentication was not completed before search');
+      console.error('[ColdStorageService] Call authenticateWithPassword() before searchDocuments()');
       throw new Error('Authentication required for cold storage access');
     }
+    
+    console.log('[ColdStorageService] ✓ Authentication verified for search operation');
+    console.log('[ColdStorageService] ===== SEARCH PREREQUISITES VERIFIED =====');
 
     if (!this.storageIndex || this.storageIndex.batches.length === 0) {
       return {
@@ -383,7 +572,7 @@ export class ColdStorageService {
         total: 0,
         query,
         batchesSearched: 0,
-        message: 'No archived documents available'
+        error: 'No archived documents available'
       };
     }
 
@@ -455,7 +644,7 @@ export class ColdStorageService {
         searchDuration, 
         0,
         {
-          error: error.message,
+          error: (error as Error).message,
           failed: true
         }
       );
@@ -468,7 +657,7 @@ export class ColdStorageService {
         results: [],
         total: 0,
         query,
-        error: error.message,
+        error: (error as Error).message,
         batchesSearched: 0
       };
     }
@@ -478,7 +667,7 @@ export class ColdStorageService {
    * Get specific batch data (for admin/debugging)
    * AIDEV-NOTE: Always require authentication for batch access (encrypted-only policy)
    */
-  async getBatch(batchId) {
+  public async getBatch(batchId: string): Promise<any> {
     if (!this.isAuthenticated) {
       throw new Error('Authentication required for batch access');
     }
@@ -488,14 +677,14 @@ export class ColdStorageService {
       return result.batchData;
     } catch (error) {
       console.error('Failed to get batch:', error);
-      throw new Error(`Batch retrieval failed: ${error.message}`);
+      throw new Error(`Batch retrieval failed: ${(error as Error).message}`);
     }
   }
 
   /**
    * Clear batch cache
    */
-  async clearCache() {
+  public async clearCache(): Promise<void> {
     if (!this.isInitialized) {
       return;
     }
@@ -511,7 +700,7 @@ export class ColdStorageService {
    * Get cache statistics
    * AIDEV-NOTE: Always require authentication for cache stats (encrypted-only policy)
    */
-  async getCacheStats() {
+  public async getCacheStats(): Promise<{ cacheSize: number; cachedBatches: number; maxCacheSize: number }> {
     if (!this.isAuthenticated) {
       throw new Error('Authentication required for cache statistics');
     }
@@ -532,7 +721,17 @@ export class ColdStorageService {
   /**
    * Get storage index information
    */
-  getStorageInfo() {
+  public getStorageInfo(): {
+    totalDocuments: number;
+    totalBatches: number;
+    isLoaded: boolean;
+    batchSizes: Array<{
+      id: string;
+      documentCount: number;
+      size: number;
+      dateRange: any;
+    }>;
+  } {
     return {
       totalDocuments: this.storageIndex?.totalDocuments || 0,
       totalBatches: this.storageIndex?.batches?.length || 0,
@@ -550,10 +749,10 @@ export class ColdStorageService {
    * Check if cold storage is available
    * AIDEV-NOTE: Always require authentication - cold storage is encrypted-only
    */
-  isAvailable() {
+  public isAvailable(): boolean {
     return this.isInitialized && 
            this.isAuthenticated && 
-           this.storageIndex && 
+           !!this.storageIndex && 
            this.storageIndex.batches.length > 0;
   }
   
@@ -561,7 +760,7 @@ export class ColdStorageService {
    * Check if cold storage requires authentication (always true for encrypted-only policy)
    * AIDEV-NOTE: Helper method to indicate authentication is always required
    */
-  requiresAuthentication() {
+  public requiresAuthentication(): boolean {
     return true; // Always true for encrypted-only cold storage
   }
 
@@ -569,7 +768,7 @@ export class ColdStorageService {
    * Send message to worker and wait for response
    * AIDEV-NOTE: Enhanced with detailed logging for worker communication
    */
-  async sendMessage(type, payload = {}, customId = null) {
+  private async sendMessage(type: string, payload: any = {}, customId?: string): Promise<any> {
     if (!this.worker) {
       console.error('[ColdStorageService] Cannot send message - worker not initialized');
       throw new Error('Worker not initialized');
@@ -584,12 +783,12 @@ export class ColdStorageService {
         this.pendingMessages.delete(id);
         this.searchCallbacks.delete(id);
         reject(new Error('Message timeout'));
-      }, 60000); // 60 second timeout for cold storage operations
+      }, this.messageTimeout);
 
       this.pendingMessages.set(id, { resolve, reject, timeout });
       console.log(`[ColdStorageService] Message ${id} added to pending (total pending: ${this.pendingMessages.size})`);
 
-      this.worker.postMessage({
+      this.worker!.postMessage({
         type,
         id,
         payload
@@ -602,7 +801,7 @@ export class ColdStorageService {
    * Handle messages from worker
    * AIDEV-NOTE: Enhanced with detailed logging for worker message handling
    */
-  handleWorkerMessage(message) {
+  private handleWorkerMessage(message: ColdStorageWorkerMessage): void {
     const { type, id, payload } = message;
     console.log(`[ColdStorageService] Handling worker message:`, { type, id, payloadKeys: Object.keys(payload || {}) });
 
@@ -615,13 +814,15 @@ export class ColdStorageService {
       });
       
       const callback = this.searchCallbacks.get(id);
-      callback({
-        type: 'progress',
-        message: payload.message,
-        totalBatches: payload.totalBatches,
-        completedBatches: payload.completedBatches,
-        partialResults: payload.partialResults || []
-      });
+      if (callback) {
+        callback({
+          type: 'progress',
+          message: payload.message,
+          totalBatches: payload.totalBatches,
+          completedBatches: payload.completedBatches,
+          partialResults: payload.partialResults || []
+        });
+      }
       return;
     }
 
@@ -629,17 +830,20 @@ export class ColdStorageService {
     if (id && this.pendingMessages.has(id)) {
       console.log(`[ColdStorageService] Processing final response for ${id}:`, { type, success: !type.endsWith('-error') });
       
-      const { resolve, reject, timeout } = this.pendingMessages.get(id);
-      clearTimeout(timeout);
-      this.pendingMessages.delete(id);
-      console.log(`[ColdStorageService] Removed ${id} from pending (remaining: ${this.pendingMessages.size})`);
+      const pendingMessage = this.pendingMessages.get(id);
+      if (pendingMessage) {
+        const { resolve, reject, timeout } = pendingMessage;
+        clearTimeout(timeout);
+        this.pendingMessages.delete(id);
+        console.log(`[ColdStorageService] Removed ${id} from pending (remaining: ${this.pendingMessages.size})`);
 
-      if (type.endsWith('-error')) {
-        console.error(`[ColdStorageService] Worker error for ${id}:`, payload.message || 'Unknown worker error');
-        reject(new Error(payload.message || 'Unknown worker error'));
-      } else {
-        console.log(`[ColdStorageService] Successful response for ${id}`);
-        resolve(payload);
+        if (type.endsWith('-error')) {
+          console.error(`[ColdStorageService] Worker error for ${id}:`, payload.message || 'Unknown worker error');
+          reject(new Error(payload.message || 'Unknown worker error'));
+        } else {
+          console.log(`[ColdStorageService] Successful response for ${id}`);
+          resolve(payload);
+        }
       }
       return;
     }
@@ -708,7 +912,7 @@ export class ColdStorageService {
         // Update worker state
         this.workerState.status = 'ready';
         this.workerState.lastHeartbeat = performance.now();
-        this.workerState.initializationDuration = performance.now() - this.workerState.initializationStart;
+        this.workerState.initializationDuration = performance.now() - (this.workerState.initializationStart || 0);
         
         console.log('[ColdStorageService] Worker state updated:', {
           status: this.workerState.status,
@@ -731,7 +935,7 @@ export class ColdStorageService {
    * AIDEV-NOTE: Cold storage is designed for pre-encrypted batches, not individual document addition
    * This is a stub implementation for compatibility with AppealImportService
    */
-  async addDocument(document) {
+  public async addDocument(document: Document): Promise<void> {
     console.log('[ColdStorageService] addDocument called (not implemented for encrypted cold storage):', {
       documentId: document.id || 'unknown',
       filename: document.filename || 'unknown',
@@ -749,12 +953,117 @@ export class ColdStorageService {
   }
 
   /**
+   * Add a batch of documents to cold storage
+   * AIDEV-NOTE: Proper method for adding multiple documents as an encrypted batch
+   */
+  public async addBatch(documents: Document[], metadata: BatchMetadata = {}): Promise<{ batchId: string; documentCount: number; success: boolean }> {
+    if (!this.isInitialized) {
+      throw new Error('Service not initialized');
+    }
+
+    if (!this.isAuthenticated) {
+      throw new Error('Service not authenticated');
+    }
+
+    if (!Array.isArray(documents) || documents.length === 0) {
+      throw new Error('Documents array is required and must not be empty');
+    }
+
+    console.log('[ColdStorageService] Adding batch to cold storage:', {
+      documentCount: documents.length,
+      totalContentSize: documents.reduce((sum, doc) => sum + ((doc as any).content?.length || 0), 0),
+      hasMetadata: !!metadata
+    });
+
+    try {
+      // Generate unique batch ID
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const batchId = `import-batch-${timestamp}-${Math.random().toString(36).substr(2, 8)}`;
+      
+      // Extract keywords from document content for batch metadata
+      const allContent = documents.map(doc => (doc as any).content || '').join(' ').toLowerCase();
+      const commonWords = ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'up', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'among', 'throughout', 'alongside', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'this', 'that', 'these', 'those'];
+      
+      const words = allContent.split(/\s+/)
+        .filter(word => word.length >= 3)
+        .filter(word => !commonWords.includes(word))
+        .filter(word => /^[a-zA-Z]+$/.test(word));
+      
+      const wordCounts: Record<string, number> = {};
+      words.forEach(word => {
+        wordCounts[word] = (wordCounts[word] || 0) + 1;
+      });
+      
+      const keywords = Object.entries(wordCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 20)
+        .map(([word]) => word);
+
+      // Calculate date range from documents
+      const dates = documents
+        .map(doc => (doc as any).date || (doc as any).created_at || doc.uploadDate)
+        .filter(date => date)
+        .map(date => new Date(date))
+        .filter(date => !isNaN(date.getTime()));
+      
+      const dateRange = dates.length > 0 ? {
+        start: new Date(Math.min(...dates.map(d => d.getTime()))).toISOString(),
+        end: new Date(Math.max(...dates.map(d => d.getTime()))).toISOString()
+      } : {
+        start: new Date().toISOString(),
+        end: new Date().toISOString()
+      };
+
+      // Prepare batch for worker
+      const batchData = {
+        batchId,
+        documents,
+        metadata: {
+          keywords,
+          dateRange,
+          documentCount: documents.length,
+          created: new Date().toISOString(),
+          ...metadata
+        }
+      };
+
+      // Send to worker for encryption and storage
+      const result = await this.sendMessage('create-batch', batchData);
+      
+      if (result.success) {
+        console.log('[ColdStorageService] Batch created successfully:', {
+          batchId: result.batchId,
+          documentCount: documents.length,
+          encrypted: true
+        });
+        
+        return {
+          batchId: result.batchId,
+          documentCount: documents.length,
+          success: true
+        };
+      } else {
+        throw new Error(result.error || 'Failed to create batch');
+      }
+      
+    } catch (error) {
+      console.error('[ColdStorageService] Failed to add batch:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Cleanup resources
    */
-  async cleanup() {
+  public async cleanup(): Promise<void> {
     if (this.worker) {
       this.worker.terminate();
       this.worker = null;
+    }
+
+    if (this.memoryCleanupTimeout) {
+      clearTimeout(this.memoryCleanupTimeout);
+      this.memoryCleanupTimeout = null;
     }
 
     this.isInitialized = false;
@@ -767,7 +1076,7 @@ export class ColdStorageService {
   /**
    * Get current service state
    */
-  getState() {
+  public getState(): ColdStorageServiceState {
     return {
       isInitialized: this.isInitialized,
       isAuthenticated: this.isAuthenticated,
@@ -783,7 +1092,16 @@ export class ColdStorageService {
   /**
    * Get detailed worker status for debugging
    */
-  getWorkerStatus() {
+  public getWorkerStatus(): {
+    state: ColdStorageWorkerState;
+    hasWorker: boolean;
+    pendingMessages: number;
+    activeSearches: number;
+    memoryStats: {
+      decryptedBatches: number;
+      lastCleanup: string;
+    };
+  } {
     return {
       state: { ...this.workerState },
       hasWorker: !!this.worker,

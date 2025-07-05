@@ -13,15 +13,12 @@ import StyleClass from 'primevue/styleclass';
 // Import worker preload module to ensure workers are included in build
 import './workers/index';
 
-// Import service provider for gradual migration
-import { serviceProvider } from './services/ServiceProvider.js';
+// Service provider removed - using DI container directly
 
-// Extend window interface for debugging
-declare global {
-  interface Window {
-    serviceProvider?: any;
-  }
-}
+// Import DI container and service registry
+import { initializeServices } from './services/serviceRegistry';
+
+// Window interface for debugging - serviceProvider removed
 
 const routes = [
   // AIDEV-NOTE: Unified search interface is now the primary route
@@ -35,21 +32,15 @@ const router = createRouter({
 
 const app = createApp(App);
 
-// AIDEV-NOTE: Initialize service provider for migration strategy
+// AIDEV-NOTE: Initialize service provider and DI container
 async function initializeApplication() {
   try {
-    console.log('[Main] Initializing application with service provider...');
+    console.log('[Main] Initializing application with dependency injection...');
 
-    // Initialize service provider with current configuration
-    await serviceProvider.initialize();
+    // Initialize DI container with all services
+    await initializeServices();
 
-    // Make service provider globally accessible for debugging
-    if (typeof window !== 'undefined') {
-      window.serviceProvider = serviceProvider;
-    }
-
-    // Log current system status
-    console.log('[Main] System status:', serviceProvider.getSystemStatus());
+    console.log('[Main] DI container initialized successfully');
 
     // AIDEV-NOTE: Configure PrimeVue in unstyled mode for complete custom styling
     app.use(PrimeVue, {

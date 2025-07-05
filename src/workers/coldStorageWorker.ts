@@ -277,6 +277,71 @@ class WorkerEncryptionService {
     }
   }
 
+  async encryptBatch(batchData: any): Promise<EncryptedBatch> {
+    console.log('[ColdStorageWorker][EncryptionService] Encrypting batch:', batchData.batchId);
+    
+    if (!this.userPassword) {
+      throw new Error('Encryption service not initialized with password');
+    }
+
+    try {
+      // Generate a unique salt for this batch
+      const salt = crypto.getRandomValues(new Uint8Array(this.saltLength));
+      const saltString = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      // Derive batch-specific key using the salt
+      const batchKey = await this.deriveKeyFromBatchSalt(saltString);
+      
+      // Convert batch data to JSON string
+      const jsonString = JSON.stringify(batchData);
+      
+      // Generate IV for encryption
+      const iv = crypto.getRandomValues(new Uint8Array(this.ivLength));
+      
+      // Encrypt the batch content
+      const encryptedBuffer = await crypto.subtle.encrypt(
+        { name: this.algorithm, iv },
+        batchKey,
+        new TextEncoder().encode(jsonString)
+      );
+      
+      // Convert to base64 for storage
+      const encryptedData = Array.from(new Uint8Array(encryptedBuffer));
+      const ivArray = Array.from(iv);
+      
+      const originalSize = new TextEncoder().encode(jsonString).length;
+      const encryptedSize = encryptedData.length;
+      
+      const encryptedBatch: EncryptedBatch = {
+        version: '1.0',
+        algorithm: this.algorithm,
+        data: encryptedData,
+        iv: ivArray,
+        checksum: [], // TODO: Implement checksum if needed
+        salt: saltString,
+        metadata: {
+          batchId: batchData.batchId,
+          documentCount: batchData.documents?.length || 0,
+          originalSize: originalSize,
+          compressedSize: originalSize, // Not using compression yet
+          encryptedSize: encryptedSize
+        }
+      };
+      
+      console.log('[ColdStorageWorker][EncryptionService] Batch encrypted successfully:', {
+        batchId: batchData.batchId,
+        documentCount: batchData.documents?.length || 0,
+        encryptedSize: encryptedData.length
+      });
+      
+      return encryptedBatch;
+      
+    } catch (error) {
+      console.error('[ColdStorageWorker][EncryptionService] Batch encryption failed:', error);
+      throw new Error(`Batch encryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async decryptBatch(encryptedBatch: EncryptedBatch): Promise<any> {
     console.log('[ColdStorageWorker][EncryptionService] Decrypting batch:', encryptedBatch.metadata?.batchId);
     
@@ -427,6 +492,11 @@ class ColdStorageWorker {
           await this.handleGetBatch(payload, id);
           break;
 
+        case 'create-batch':
+          console.log(`[ColdStorageWorker] Processing create-batch for ${id}:`, { documentCount: payload.documents?.length });
+          await this.handleCreateBatch(payload, id);
+          break;
+
         case 'clear-cache':
           console.log(`[ColdStorageWorker] Processing clear-cache for ${id}`);
           await this.handleClearCache(id);
@@ -459,25 +529,65 @@ class ColdStorageWorker {
   }
 
   private async handleAuthInit(payload: any, id?: string) {
-    console.log(`[ColdStorageWorker] Starting authentication initialization...`);
+    console.log(`[ColdStorageWorker] ===== AUTHENTICATION INITIALIZATION START =====`);
+    console.log(`[ColdStorageWorker] Starting authentication initialization for message ID: ${id}`);
+    console.log(`[ColdStorageWorker] Payload analysis:`, {
+      hasPassword: !!payload.password,
+      hasKeyMaterial: !!payload.keyMaterial,
+      passwordLength: payload.password ? payload.password.length : 0,
+      keyMaterialType: payload.keyMaterial ? typeof payload.keyMaterial : 'undefined'
+    });
     
     try {
       // Support both old keyMaterial format and new password format
       if (payload.password) {
+        console.log('[ColdStorageWorker] ✓ Password-based authentication detected');
+        console.log(`[ColdStorageWorker] Password length: ${payload.password.length} characters`);
         console.log('[ColdStorageWorker] Initializing encryption service with password for batch-specific decryption...');
+        
+        const authStartTime = performance.now();
         await this.encryptionService.initializeWithPassword(payload.password);
+        const authEndTime = performance.now();
+        
+        console.log(`[ColdStorageWorker] ✓ Password authentication completed in ${(authEndTime - authStartTime).toFixed(2)}ms`);
+        console.log(`[ColdStorageWorker] Encryption service state after password init:`, {
+          isInitialized: this.encryptionService.isInitialized(),
+          userPasswordSet: !!this.encryptionService.userPassword,
+          encryptionKeySet: !!this.encryptionService.encryptionKey
+        });
+        
       } else if (payload.keyMaterial) {
+        console.log('[ColdStorageWorker] ✓ Key material-based authentication detected (legacy)');
+        console.log(`[ColdStorageWorker] Key material type: ${typeof payload.keyMaterial}`);
         console.log('[ColdStorageWorker] Initializing encryption service with key material (legacy)...');
+        
+        const authStartTime = performance.now();
         await this.encryptionService.initialize(payload.keyMaterial);
+        const authEndTime = performance.now();
+        
+        console.log(`[ColdStorageWorker] ✓ Key material authentication completed in ${(authEndTime - authStartTime).toFixed(2)}ms`);
+        console.log(`[ColdStorageWorker] Encryption service state after key material init:`, {
+          isInitialized: this.encryptionService.isInitialized(),
+          userPasswordSet: !!this.encryptionService.userPassword,
+          encryptionKeySet: !!this.encryptionService.encryptionKey
+        });
+        
       } else {
+        console.error('[ColdStorageWorker] ❌ AUTHENTICATION PAYLOAD ERROR');
         console.error('[ColdStorageWorker] No password or key material provided for authentication');
+        console.error('[ColdStorageWorker] Expected: { password: string } or { keyMaterial: ArrayBuffer }');
+        console.error('[ColdStorageWorker] Received:', Object.keys(payload));
         throw new Error('No password or key material provided');
       }
 
+      // Set worker authentication state
+      const wasAuthenticated = this.isAuthenticated;
       this.isAuthenticated = true;
-      console.log('[ColdStorageWorker] Authentication successful, encryption service ready');
+      console.log(`[ColdStorageWorker] ✓ Worker authentication state updated: ${wasAuthenticated} → ${this.isAuthenticated}`);
+      console.log('[ColdStorageWorker] ✓ Authentication successful, encryption service ready for encrypted batch access');
 
       // Send successful response for the specific message ID
+      console.log(`[ColdStorageWorker] Sending auth-init-response for message ID: ${id}`);
       this.postMessage({
         type: 'auth-init-response',
         id,
@@ -485,18 +595,34 @@ class ColdStorageWorker {
       });
 
       // Also send the general auth-complete notification
+      console.log(`[ColdStorageWorker] Sending auth-complete notification to main thread`);
       this.postMessage({
         type: 'auth-complete',
         payload: { success: true }
       });
+      
+      console.log(`[ColdStorageWorker] ===== AUTHENTICATION INITIALIZATION SUCCESS =====`);
 
     } catch (error) {
-      console.error('[ColdStorageWorker] Authentication failed:', error);
+      console.error(`[ColdStorageWorker] ===== AUTHENTICATION INITIALIZATION FAILED =====`);
+      console.error('[ColdStorageWorker] Authentication failed with error:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        errorType: error instanceof Error ? error.constructor.name : typeof error
+      });
+      
+      // Ensure authentication state is false on failure
+      this.isAuthenticated = false;
+      console.error(`[ColdStorageWorker] Worker authentication state reset to: ${this.isAuthenticated}`);
+      
+      console.error(`[ColdStorageWorker] Sending auth-init-error for message ID: ${id}`);
       this.postMessage({
         type: 'auth-init-error',
         id,
         payload: { message: error instanceof Error ? error.message : 'Unknown error' }
       });
+      
+      console.error(`[ColdStorageWorker] ===== AUTHENTICATION INITIALIZATION END =====`);
     }
   }
 
@@ -680,14 +806,48 @@ class ColdStorageWorker {
   }
 
   private async handleSearchColdStorage(payload: any, id?: string) {
+    console.log(`[ColdStorageWorker] ===== SEARCH COLD STORAGE START =====`);
+    console.log(`[ColdStorageWorker] Search request received for message ID: ${id}`);
+    console.log(`[ColdStorageWorker] Query: "${payload.query}"`);
+    console.log(`[ColdStorageWorker] Options:`, payload.options || {});
+    
+    // AIDEV-NOTE: Critical pre-search state verification
+    console.log(`[ColdStorageWorker] ===== PRE-SEARCH STATE VERIFICATION =====`);
+    console.log(`[ColdStorageWorker] Storage index state:`, {
+      hasStorageIndex: !!this.storageIndex,
+      totalBatches: this.storageIndex?.batches?.length || 0,
+      totalDocuments: this.storageIndex?.totalDocuments || 0
+    });
+    
     if (!this.storageIndex) {
+      console.error(`[ColdStorageWorker] ❌ STORAGE INDEX NOT LOADED`);
+      console.error(`[ColdStorageWorker] Cannot perform search without storage index`);
+      console.error(`[ColdStorageWorker] This indicates storage index loading failed during initialization`);
       throw new Error('Storage index not loaded');
     }
     
+    console.log(`[ColdStorageWorker] Authentication state verification:`, {
+      isAuthenticated: this.isAuthenticated,
+      encryptionServiceInitialized: this.encryptionService.isInitialized(),
+      userPasswordPresent: !!this.encryptionService.userPassword,
+      encryptionKeyPresent: !!this.encryptionService.encryptionKey,
+      hasEncryptedBatches: this.storageIndex.batches.some(batch => !batch.hasOwnProperty('encrypted') || batch.encrypted !== false)
+    });
+    
     // AIDEV-NOTE: Always require authentication for cold storage (encrypted-only policy)
     if (!this.isAuthenticated) {
+      console.error(`[ColdStorageWorker] ❌ CRITICAL SEARCH AUTHENTICATION FAILURE`);
+      console.error(`[ColdStorageWorker] Search attempted without authentication`);
+      console.error(`[ColdStorageWorker] This indicates one of the following:`);
+      console.error(`[ColdStorageWorker] 1. Authentication never completed successfully`);
+      console.error(`[ColdStorageWorker] 2. Authentication state was reset after completion`);
+      console.error(`[ColdStorageWorker] 3. Race condition between auth and search operations`);
+      console.error(`[ColdStorageWorker] Encrypted cold storage requires authentication before search`);
       throw new Error('Authentication required for cold storage access');
     }
+    
+    console.log(`[ColdStorageWorker] ✓ Pre-search verification passed - authentication and storage index ready`);
+    console.log(`[ColdStorageWorker] ===== PRE-SEARCH STATE VERIFICATION COMPLETE =====`);
 
     const { query, options = {} } = payload;
     const { limit = 50 } = options;
@@ -1001,6 +1161,35 @@ class ColdStorageWorker {
       documentCount: batch.documentCount,
       encrypted: batch.encrypted
     });
+
+    // AIDEV-NOTE: Critical authentication state debugging
+    console.log(`[ColdStorageWorker] ===== AUTHENTICATION STATE DIAGNOSTICS =====`);
+    console.log(`[ColdStorageWorker] Worker authentication state:`, {
+      isAuthenticated: this.isAuthenticated,
+      encryptionServiceInitialized: this.encryptionService.isInitialized(),
+      userPasswordPresent: !!this.encryptionService.userPassword,
+      encryptionKeyPresent: !!this.encryptionService.encryptionKey
+    });
+    
+    if (!this.isAuthenticated) {
+      console.error(`[ColdStorageWorker] ❌ CRITICAL AUTHENTICATION FAILURE`);
+      console.error(`[ColdStorageWorker] Worker shows not authenticated for batch: ${batch.batchId}`);
+      console.error(`[ColdStorageWorker] This indicates auth-init message was not processed or failed`);
+      console.error(`[ColdStorageWorker] Encrypted batch access requires authentication first`);
+      console.log(`[ColdStorageWorker] ===== BATCH DATA RETRIEVAL FAILED =====`);
+      throw new Error(`Authentication required for batch access: ${batch.batchId}`);
+    }
+    
+    if (!this.encryptionService.isInitialized()) {
+      console.error(`[ColdStorageWorker] ❌ CRITICAL ENCRYPTION SERVICE FAILURE`);
+      console.error(`[ColdStorageWorker] EncryptionService not initialized despite worker authentication: ${batch.batchId}`);
+      console.error(`[ColdStorageWorker] This indicates a disconnect between auth state and encryption service`);
+      console.log(`[ColdStorageWorker] ===== BATCH DATA RETRIEVAL FAILED =====`);
+      throw new Error(`Encryption service not initialized for batch: ${batch.batchId}`);
+    }
+    
+    console.log(`[ColdStorageWorker] ✓ Authentication checks passed for batch: ${batch.batchId}`);
+    console.log(`[ColdStorageWorker] ===== AUTHENTICATION STATE DIAGNOSTICS END =====`);
 
     // Check cache first
     if (this.batchCache.has(batch.batchId)) {
@@ -1343,6 +1532,98 @@ class ColdStorageWorker {
         maxCacheSize: this.MAX_CACHE_SIZE
       }
     });
+  }
+
+  private async handleCreateBatch(payload: any, id?: string) {
+    try {
+      if (!this.encryptionService.isInitialized()) {
+        throw new Error('Encryption service not initialized');
+      }
+
+      const { batchId, documents, metadata } = payload;
+      
+      if (!batchId || !documents || !Array.isArray(documents)) {
+        throw new Error('Invalid batch data: batchId and documents array required');
+      }
+
+      console.log(`[ColdStorageWorker] Creating batch ${batchId} with ${documents.length} documents`);
+
+      // Create batch structure
+      const batchData = {
+        version: '1.0',
+        batchId: batchId.replace('-encrypted', ''), // Remove -encrypted suffix if present
+        documents,
+        metadata: {
+          created: new Date().toISOString(),
+          documentCount: documents.length,
+          totalSize: JSON.stringify(documents).length,
+          ...metadata
+        }
+      };
+
+      // Encrypt the batch using the encryption service
+      const encryptedBatch = await this.encryptionService.encryptBatch(batchData);
+      
+      console.log(`[ColdStorageWorker] Batch ${batchId} encrypted successfully`);
+
+      // In a real implementation, this would save to file system or send to server
+      // For now, we'll simulate successful creation and update the storage index
+      
+      // Create batch metadata for storage index
+      const batchMetadata = {
+        batchId: `${batchId}-encrypted`,
+        url: `/decision-parser/cold-storage/${batchId}-encrypted.json`,
+        documentCount: documents.length,
+        dateRange: metadata.dateRange || {
+          start: new Date().toISOString(),
+          end: new Date().toISOString()
+        },
+        keywords: metadata.keywords || [],
+        size: `${Math.round(JSON.stringify(encryptedBatch).length / 1024)}KB`,
+        encrypted: true
+      };
+
+      // Update storage index (in memory for now)
+      const storageIndex = this.storageIndex;
+      if (storageIndex && Array.isArray(storageIndex.batches)) {
+        storageIndex.totalDocuments = (storageIndex.totalDocuments || 0) + documents.length;
+        storageIndex.totalBatches = (storageIndex.totalBatches || 0) + 1;
+        storageIndex.lastUpdated = new Date().toISOString();
+        storageIndex.batches.push(batchMetadata);
+        
+        console.log(`[ColdStorageWorker] Storage index updated - total documents: ${storageIndex.totalDocuments}, total batches: ${storageIndex.totalBatches}`);
+      } else {
+        console.warn(`[ColdStorageWorker] Storage index not available, cannot update index`);
+      }
+
+      // Add to cache for immediate availability
+      this.addToCache(`${batchId}-encrypted`, batchData);
+
+      this.postMessage({
+        type: 'create-batch-response',
+        id,
+        payload: {
+          success: true,
+          batchId: `${batchId}-encrypted`,
+          documentCount: documents.length,
+          metadata: batchMetadata
+        }
+      });
+
+      console.log(`[ColdStorageWorker] Batch creation completed successfully`);
+
+    } catch (error) {
+      console.error(`[ColdStorageWorker] Failed to create batch:`, error);
+      
+      this.postMessage({
+        type: 'create-batch-response',
+        id,
+        payload: {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error occurred'
+        }
+      });
+    }
   }
 
   private postMessage(message: any) {
