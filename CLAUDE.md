@@ -1,10 +1,10 @@
-# Medical Rota Management System - AI Development Guide
+# PDF Document Processing & Search System - AI Development Guide
 
 ## AI Assistant Expertise & Context
 You are an expert in:
 - **Web Development**: CSS, JavaScript, Vue.js, Tailwind, Markdown
-- **PDF Processing Applications**: Understanding of pdf processing
-- **Project Type**: High volume PDF processing and searching
+- **PDF Processing Applications**: PDF.js, document parsing, text extraction
+- **Project Type**: Legal document processing and search for UK Planning Appeals
 
 ## AI Behavioral Guidelines
 
@@ -18,6 +18,7 @@ You are an expert in:
 - **Read Documentation**: Understand all `.md` files before executing commands
 - **Incremental Changes**: Break work into discrete changes with small tests at each stage
 - **File Updates**: Update documentation files as needed for future effectiveness
+- **MCP Tool Usage**: Proactively use MCP servers (sequential-thinking, context7, duckduckgo-search, etc.) when they add value to development tasks
 
 ### Development Process
 1. **Code Review**: Perform comprehensive review between `<CODE_REVIEW>` tags
@@ -109,14 +110,103 @@ For sensitive changes (Input Handling, Monetary Calculations, Authentication), e
 
 ## 1. Project Overview
 
-This project is a web based application to allow users to upload and search the contents of PDF files.
+This project is a web-based application for processing and searching UK Planning Appeal decision letters. The application provides encrypted document storage, advanced search capabilities, and secure access to large archives of legal documents through a modern cold storage architecture.
 
+**AIDEV-NOTE**: This application recently completed a major migration from Dexie.js to a cold storage only architecture (July 2025). All document processing now uses encrypted batch storage with worker-based search for enhanced security and performance.
 
 **Golden rule**: When unsure about implementation details or requirements, ALWAYS consult the developer rather than making assumptions.
 
 ---
 
-## 2. Non-negotiable Golden Rules
+## 2. Recent Architectural Improvements (July 2025)
+
+The codebase has undergone significant architectural improvements focused on **type safety**, **modular design**, **error handling**, and **component architecture**:
+
+### 🔄 TypeScript Migration 
+**AIDEV-NOTE**: Completed comprehensive TypeScript migration for core services
+
+- **ColdStorageService.ts**: Migrated 970-line service with comprehensive interfaces for search operations, batch management, and worker communication
+- **MemoryManager.ts**: Converted 580-line memory management service with typed metrics, cleanup operations, and performance tracking  
+- **PerformanceMonitor.ts**: Migrated 740-line performance monitoring service with typed metrics storage and alert system
+- **UserFriendlyError.ts**: New 425-line TypeScript error handling system with factory methods and recovery actions
+
+**Benefits**: Enhanced type safety, better IDE support, reduced runtime errors, improved developer experience
+
+### 🏗️ Store Architecture Decomposition
+**AIDEV-NOTE**: Refactored monolithic store into focused modules
+
+**Before**: Single 663-line `stores/index.ts` with mixed concerns
+**After**: Modular architecture with focused responsibilities
+
+- **`authentication.ts`** (70 lines): Clean authentication state management
+- **`coldStorage.ts`** (200 lines): Cold storage operations and state  
+- **`search.ts`** (250 lines): Search state and result management
+- **`performance.ts`** (180 lines): Performance monitoring and alerts
+- **`index.ts`** (50 lines): Unified store composable combining all modules
+
+**Benefits**: Better separation of concerns, easier testing, improved maintainability, reduced cognitive load
+
+### 🛡️ UserFriendlyError System
+**AIDEV-NOTE**: Comprehensive error handling system replacing generic error messages
+
+**Key Features**:
+- **Context-Aware Errors**: Replaces generic errors with actionable user guidance
+- **Recovery Actions**: Provides users with specific next steps (retry, help, refresh)
+- **Error Factory**: Standardized error creation patterns for common scenarios
+- **Severity Levels**: Categorized error handling (info, warning, error, critical)
+- **Technical Details**: Optional technical information for debugging while maintaining user-friendly messages
+
+**Factory Methods**: `authentication()`, `network()`, `search()`, `performance()`, `storage()`, `validation()`, `compatibility()`
+
+### 🧩 Component Architecture Enhancement
+**AIDEV-NOTE**: Extracted focused components following Vue 3 composition patterns
+
+**Component Extractions**:
+- **SearchHeader.vue**: Branding, search bar, and action buttons
+- **SearchControls.vue**: Filters, sensitivity controls, and date ranges  
+- **SearchResults.vue**: Results display with pagination and loading states
+- **SearchStats.vue**: Search statistics and performance metrics
+- **ImportModal.vue**: Document import with progress tracking
+
+**Benefits**: Better reusability, easier testing, clearer component boundaries, improved maintainability
+
+### 🧪 Testing Infrastructure
+**AIDEV-NOTE**: Comprehensive unit test coverage for new TypeScript services
+
+**Test Suites Created**:
+- **UserFriendlyError.test.ts** (412 lines): Error handling system validation
+- **PerformanceMonitor.test.ts** (560 lines): Performance metric testing
+- **MemoryManager.test.ts** (438 lines): Memory management test suite
+
+**Coverage**: 90%+ coverage for all new services with comprehensive edge case testing
+
+### 📊 Performance Improvements
+**AIDEV-NOTE**: Reduced production bundle size and improved runtime performance
+
+- **Reduced Console Output**: Removed 52+ console.log statements from production code
+- **Memory Optimization**: Better resource cleanup and garbage collection
+- **Type Safety**: Eliminated runtime type errors through comprehensive TypeScript implementation
+- **Component Splitting**: Reduced initial bundle size through better component organization
+
+### 🔗 Integration Benefits
+**AIDEV-NOTE**: Architectural improvements work together for enhanced developer experience
+
+- **Type Safety + Error Handling**: TypeScript interfaces ensure proper UserFriendlyError usage
+- **Modular Stores + Components**: Better data flow between focused store modules and extracted components
+- **Testing + Type Safety**: TypeScript makes tests more reliable and comprehensive
+- **Component Architecture + Error Handling**: Components use UserFriendlyError for consistent user experience
+
+### 📝 Documentation Updates
+**AIDEV-NOTE**: Updated AIDEV-NOTE comments throughout codebase
+
+- **Service Documentation**: Comprehensive documentation for migrated TypeScript services
+- **Store Documentation**: Clear documentation of modular store architecture
+- **Component Documentation**: Proper documentation of extracted components and their APIs
+- **Error Handling Documentation**: Complete documentation of UserFriendlyError patterns
+
+---
+
+## 3. Non-negotiable Golden Rules
 
 | Rule | AI *may* do | AI *must NOT* do |
 |------|-------------|------------------|
@@ -129,7 +219,7 @@ This project is a web based application to allow users to upload and search the 
 
 ---
 
-## 3. Quick Reference Guide
+## 4. Quick Reference Guide
 
 ### 🚀 Common Development Tasks
 
@@ -144,9 +234,9 @@ This project is a web based application to allow users to upload and search the 
 
 #### Frontend Framework
 - **Vue 3**: Modern JavaScript framework with Composition API
-- **Vuetify 3**: Material Design component library
-- **Vue Router 4**: Client-side routing with protection guards
-- **Vuex 4**: Centralized state management
+- **Tailwind CSS**: Utility-first CSS framework for modern styling
+- **Vue Router 4**: Client-side routing for single-page application
+- **Cold Storage Architecture**: Encrypted batch-based document storage
 
 #### Build Tools & Development
 - **Vite**: Fast build tool and development server
@@ -154,26 +244,329 @@ This project is a web based application to allow users to upload and search the 
 - **npm**: Package manager
 - **Prettier**: Code formatting
 
-#### Styling & Design
-- **CSS Custom Properties**: Modern CSS variables for theming
-- **Material Design Icons**: Comprehensive icon system
-- **Responsive Design**: Mobile-first approach
-- **Dark Mode**: System preference based theming
+#### Document Processing & Search
+- **PDF.js**: Client-side PDF parsing and text extraction
+- **Cold Storage Workers**: Encrypted batch processing with web workers
+- **AES-256-GCM Encryption**: Secure document storage and transmission
+- **Progressive Search**: Worker-based search across encrypted document batches
+- **Appeal Import Service**: Automated download and processing of UK Planning Appeal decisions
+
+#### Cold Storage Architecture
+- **Encrypted Batches**: Documents stored in AES-256-GCM encrypted JSON files
+- **Salt-Embedded Authentication**: Each batch has unique salt for key derivation
+- **Worker-Based Processing**: All encryption/decryption happens in web workers
+- **Progressive Loading**: Batches loaded on-demand with intelligent caching
+- **Memory Management**: LRU cache with automatic cleanup and resource monitoring
+- **Authentication Service**: Challenge-response system without storing passwords
+
+### 🔧 MCP (Model Context Protocol) Servers
+
+**AIDEV-NOTE**: MCP servers provide extended capabilities beyond basic file operations. USE THESE TOOLS PROACTIVELY when they provide value for development tasks.
+
+#### Available MCP Servers Overview
+
+| Server | Primary Purpose | Key Strengths | Critical Requirements |
+|--------|----------------|---------------|----------------------|
+| **Context7** | Library documentation lookup | Up-to-date API docs, usage patterns | **MANDATORY 2-step process** |
+| **Sequential Thinking** | Complex problem-solving | Revision, branching, hypothesis validation | Structured thinking approach |
+| **IDE Server** | Code analysis & execution | VS Code diagnostics, persistent Jupyter kernel | Context awareness |
+| **Puppeteer Browser** | Browser automation | Full browser control, visual verification | Security considerations |
+| **Memory Bank** | Knowledge management | Cross-project insights, organized storage | Project-based organization |
+| **DuckDuckGo Search** | Web research | Privacy-focused, current information | Rate limits, result quotas |
+
+---
+
+#### 🔍 Context7 Library Documentation Server
+
+**Critical Workflow**: Context7 requires a **mandatory two-step process** - you MUST resolve the library ID before getting documentation.
+
+**Available Tools:**
+- `mcp__context7__resolve-library-id` - Convert library name to Context7-compatible ID
+- `mcp__context7__get-library-docs` - Fetch documentation using exact library ID
+
+**Required Workflow:**
+```bash
+# ✅ CORRECT: Two-step process
+1. mcp__context7__resolve-library-id("vue")
+   # Returns: "/vue/vue/v3.4.0" or similar
+2. mcp__context7__get-library-docs("/vue/vue/v3.4.0")
+
+# ❌ WRONG: Cannot skip step 1
+# mcp__context7__get-library-docs("vue") # This will fail
+```
+
+**Key Parameters:**
+- `tokens`: Max documentation tokens (default: 10000, higher = more context)
+- `topic`: Focus on specific areas (e.g., 'hooks', 'routing')
+- `context7CompatibleLibraryID`: Must be exact format from resolve-library-id
+
+**When to Use:**
+- Need authoritative API documentation
+- Looking for specific library usage patterns
+- Want current/up-to-date library information
+
+**Common Pitfalls:**
+- Skipping resolve-library-id step (will fail)
+- Using approximate library names instead of exact IDs
+- Not specifying topic for large libraries (gets generic overview)
+
+---
+
+#### 🧠 Sequential Thinking Problem-Solving Server
+
+**Advanced Capabilities**: This is a sophisticated reasoning tool with revision, branching, and hypothesis validation features.
+
+**Available Tool:**
+- `mcp__sequential-thinking__sequentialthinking` - Structured problem-solving with dynamic adaptation
+
+**Key Features:**
+- **Thought Revision**: Can reconsider and modify previous reasoning steps
+- **Branching**: Explore alternative approaches from any point
+- **Hypothesis Generation**: Create and test solution hypotheses
+- **Dynamic Planning**: Adjust total thoughts needed as understanding evolves
+- **Context Filtering**: Ignore irrelevant information automatically
+
+**Advanced Parameters:**
+- `isRevision`: Mark thoughts that revise previous thinking
+- `revisesThought`: Which thought number is being reconsidered
+- `branchFromThought`: Create alternative reasoning paths
+- `branchId`: Track different reasoning branches
+- `needsMoreThoughts`: Extend analysis beyond initial estimate
+
+**When to Use:**
+- Complex architectural decisions
+- Multi-step debugging processes
+- Planning large feature implementations
+- Analyzing requirements with unknown scope
+- Problem-solving that may require course correction
+
+**Example Pattern:**
+```bash
+# Start with initial analysis
+mcp__sequential-thinking__sequentialthinking("Analyze PDF processing performance issues")
+# Tool may revise earlier thoughts, branch into alternatives,
+# generate hypotheses, and validate solutions iteratively
+```
+
+---
+
+#### 💻 IDE Integration Server
+
+**Persistent Execution**: Code executed in Jupyter kernel persists across calls unless kernel is restarted.
+
+**Available Tools:**
+- `mcp__ide__getDiagnostics` - Get VS Code language diagnostics
+- `mcp__ide__executeCode` - Execute Python code in persistent Jupyter kernel
+
+**Key Features:**
+- **Persistent State**: Variables and imports remain available across executeCode calls
+- **Flexible Diagnostics**: Can get diagnostics for specific files or all files
+- **Integration**: Works with current VS Code workspace
+
+**Parameters:**
+- `getDiagnostics(uri)`: Optional file URI, omit for all files
+- `executeCode(code)`: Python code string
+
+**When to Use:**
+- Type checking and error analysis
+- Testing code snippets before implementation
+- Data analysis and exploration
+- Validating algorithms with sample data
+
+**Important Notes:**
+- **State Persistence**: Be aware that variables persist between calls
+- **Scope**: Avoid modifying global state unless explicitly needed
+- **Cleanup**: Consider kernel restart for fresh state if needed
+
+---
+
+#### 🌐 Puppeteer Browser Automation Server
+
+**Security Considerations**: Has dangerous launch options that can reduce browser security.
+
+**Available Tools:**
+- `mcp__puppeteer__puppeteer_navigate` - Navigate to URL
+- `mcp__puppeteer__puppeteer_screenshot` - Capture page/element screenshots
+- `mcp__puppeteer__puppeteer_click` - Click elements
+- `mcp__puppeteer__puppeteer_fill` - Fill input fields
+- `mcp__puppeteer__puppeteer_select` - Select dropdown options
+- `mcp__puppeteer__puppeteer_hover` - Hover over elements
+- `mcp__puppeteer__puppeteer_evaluate` - Execute JavaScript
+
+**Security Parameters:**
+- `allowDangerous`: Boolean to allow dangerous launch options (default: false)
+- `launchOptions`: Puppeteer launch configuration (restarts browser if changed)
+
+**Screenshot Options:**
+- `encoded`: Return base64 data URI instead of binary (default: false)
+- `width/height`: Viewport dimensions (default: 800x600)
+- `selector`: Screenshot specific element instead of full page
+
+**When to Use:**
+- UI testing and visual verification
+- Automated testing of web interfaces
+- Capturing screenshots for documentation
+- Interactive web application testing
+
+**Security Guidelines:**
+- Keep `allowDangerous: false` unless absolutely necessary
+- Be cautious with `launchOptions` - changes restart the browser
+- Validate URLs before navigation
+- Consider implications of JavaScript execution
+
+---
+
+#### 📊 Memory Bank Knowledge Management Server
+
+**Project Organization**: Organizes knowledge by projects, with files nested within each project.
+
+**Available Tools:**
+- `mcp__allpepper-memory-bank__list_projects` - List all available projects
+- `mcp__allpepper-memory-bank__list_project_files` - List files within a project
+- `mcp__allpepper-memory-bank__memory_bank_read` - Read specific file content
+- `mcp__allpepper-memory-bank__memory_bank_write` - Create new file
+- `mcp__allpepper-memory-bank__memory_bank_update` - Update existing file
+
+**Organization Pattern:**
+```
+Memory Bank
+├── Project A
+│   ├── implementation-notes.md
+│   ├── architecture-decisions.md
+│   └── lessons-learned.md
+├── Project B
+│   ├── api-patterns.md
+│   └── performance-optimizations.md
+└── Cross-Project
+    ├── reusable-patterns.md
+    └── common-pitfalls.md
+```
+
+**When to Use:**
+- Store implementation insights for future reference
+- Document architectural decisions and rationale
+- Share patterns across projects
+- Build institutional knowledge
+- Record lessons learned from complex implementations
+
+**Best Practices:**
+- Use descriptive project names that group related work
+- Create focused files rather than massive documents
+- Include context and rationale, not just solutions
+- Update files as understanding evolves
+
+---
+
+#### 🔍 DuckDuckGo Search Server
+
+**Privacy-Focused Web Research** with result limits and filtering options.
+
+**Available Tool:**
+- `mcp__duckduckgo-search__duckduckgo_web_search` - Privacy-focused web search
+
+**Key Parameters:**
+- `query`: Search query (max 400 characters)
+- `count`: Number of results (1-20, default: 10)
+- `safeSearch`: Content filtering ("strict", "moderate", "off")
+
+**Limitations:**
+- Maximum 20 results per request
+- Query length limited to 400 characters
+- Subject to rate limiting
+- Results may vary by region
+
+**When to Use:**
+- Research current trends and best practices
+- Find recent documentation or tutorials
+- Investigate new libraries or frameworks
+- Get diverse perspectives on technical topics
+
+**When NOT to Use:**
+- For library-specific API documentation (use Context7)
+- For complex analysis (use Sequential Thinking)
+- When you need guaranteed fresh results (may have cached results)
+
+---
+
+#### 🔗 Integration Patterns
+
+**Research → Think → Implement → Test**
+```bash
+# 1. Research phase
+mcp__duckduckgo-search__duckduckgo_web_search("Vue 3 performance optimization 2024")
+mcp__context7__resolve-library-id("vue")
+mcp__context7__get-library-docs("/vue/vue/v3.4.0", topic="performance")
+
+# 2. Analysis phase
+mcp__sequential-thinking__sequentialthinking("Plan Vue performance optimization strategy")
+
+# 3. Implementation verification
+mcp__ide__getDiagnostics() # Check current issues
+mcp__ide__executeCode("# Test performance optimization approach")
+
+# 4. UI testing
+mcp__puppeteer__puppeteer_navigate("http://localhost:5173")
+mcp__puppeteer__puppeteer_screenshot("performance-test")
+
+# 5. Document insights
+mcp__memory-bank__memory_bank_write("vue-optimization", "performance-patterns.md", insights)
+```
+
+**Debug → Analyze → Store**
+```bash
+# Debug complex issue
+mcp__ide__getDiagnostics("src/problematic-file.js")
+mcp__sequential-thinking__sequentialthinking("Analyze root cause of performance issue")
+
+# Store solution
+mcp__memory-bank__memory_bank_write("debugging-patterns", "performance-debug-checklist.md", solution)
+```
+
+#### ⚠️ Common Pitfalls & Troubleshooting
+
+**Context7 Issues:**
+- ❌ **Error**: "Invalid library ID" → Always use resolve-library-id first
+- ❌ **Empty Results**: Library not in Context7 database → Try DuckDuckGo search instead
+- ❌ **Generic Results**: Large libraries without topic → Add specific topic parameter
+
+**Sequential Thinking Issues:**
+- ❌ **Shallow Analysis**: Not using revision/branching features → Allow for thought evolution
+- ❌ **Premature Conclusion**: Ending analysis too early → Set needsMoreThoughts when uncertain
+
+**IDE Server Issues:**
+- ❌ **State Conflicts**: Variables from previous executions → Consider fresh kernel restart
+- ❌ **No Diagnostics**: Wrong file URI → Check file paths and VS Code workspace
+
+**Puppeteer Issues:**
+- ❌ **Security Errors**: Dangerous launch options → Keep allowDangerous: false
+- ❌ **Browser Restart**: Changed launch options → Be aware of restart implications
+- ❌ **Element Not Found**: CSS selectors → Verify element exists before interaction
+
+**Memory Bank Issues:**
+- ❌ **File Not Found**: Wrong project/file names → Use list_projects and list_project_files first
+- ❌ **Overwriting Content**: Using write instead of update → Use update for existing files
+
+**Performance Considerations:**
+- **Sequential Thinking**: Can be slow for complex analysis - use for non-trivial problems only
+- **Puppeteer**: Browser operations are slower than other tools - batch operations when possible
+- **Context7**: Documentation fetching takes time - cache results when doing multiple related queries
+- **DuckDuckGo**: Subject to rate limits - space out queries if making multiple searches
 
 ### 📁 Key File Locations
 
 | Purpose | Location | Description |
 |---------|----------|-------------|
-| **Components** | `src/components/` | Reusable UI components |
-| **Views** | `src/views/dashboard/` | Page-level healthcare views |
-| **Services** | `src/services/` | API calls and business logic |
-| **Store** | `src/store/modules/` | Vuex state management |
-| **Types** | `src/types/` | Type definitions |
-| **Tests** | `tests/unit/` | Unit test files |
+| **Components** | `src/components/` | Authentication, search results, debug panels |
+| **Views** | `src/views/` | UnifiedSearchView - main search interface |
+| **Services** | `src/services/` | Cold storage, encryption, authentication, appeal import |
+| **Workers** | `src/workers/` | Cold storage worker for encrypted batch processing |
+| **Utils** | `src/utils/` | Search history, data transformation, logging, validation |
+| **Stores** | `src/stores/` | Vue reactive state management for cold storage |
+| **Tests** | `tests/` | Unit and integration test files |
 
 ---
 
-## 4. Development Commands
+## 5. Development Commands
 
 - npm run build: Build the project
 
@@ -214,7 +607,7 @@ npm run test:e2e   # End-to-end tests
 
 ---
 
-## 5. Coding Standards
+## 6. Coding Standards
 
 *   **Error Handling**: Typed exceptions; context managers for resources.
 *   **Documentation**: Google-style docstrings for public functions/classes.
@@ -319,60 +712,169 @@ function process_data(data)
 
 ---
 
-## 6. Project Layout & Core Components
+## 7. Project Layout & Core Components
 
 ### Directory Organization
 ```
 src/
 ├── components/          # Reusable UI components
-│   ├── ModernCard.vue  # Flexible card component with variants
-│   ├── StatCard.vue    # Statistics display component
-│   ├── ThemeToggle.vue # Dark/light mode toggle
-│   └── FavoriteIcon.vue
+│   ├── AuthenticationSetup.vue  # Password setup and login interface
+│   ├── PerformanceIndicator.vue # System resource monitoring
+│   ├── SearchDebugPanel.vue     # Search diagnostics and debugging
+│   └── SearchResultCard.vue     # Individual search result display
 ├── views/               # Page-level components
-│   ├── dashboard/       # Dashboard-specific views
-│   │   ├── DashboardHome.vue    # Role-based dashboard
-│   │   ├── MyRotaView.vue       # Personal schedule
-│   │   ├── RotaOverview.vue     # Rota management
-│   │   ├── ShiftSwapsView.vue   # Shift swap approvals
-│   │   ├── ShiftTypesView.vue   # Shift configuration
-│   │   └── UsersView.vue        # User management
-│   ├── Dashboard.vue    # Main dashboard layout
-│   ├── Login.vue       # Authentication interface
-│   └── Home.vue        # Landing page
+│   └── UnifiedSearchView.vue    # Main search interface with authentication
 ├── services/            # Business logic and API calls
-│   ├── auth.js         # Authentication service
-│   ├── locations.js    # Location management
-│   └── shifts.js       # Shift management
-├── store/               # Vuex state management
-│   ├── modules/
-│   │   ├── auth.js     # Authentication state
-│   │   ├── locations.js # Location state
-│   │   ├── rotas.js    # Rota state
-│   │   ├── shifts.js   # Shift state
-│   │   └── theme.js    # Theme state
-│   └── index.js        # Store configuration
-├── router/              # Vue Router configuration
-│   └── index.js        # Route definitions and guards
-├── assets/              # Static assets
-│   ├── base.css        # Design system tokens
-│   ├── main.css        # Global styles
-│   └── logo.svg
-└── types/               # Type definitions
-    └── UserType.js     # User role definitions
+│   ├── AppealImportService.ts   # Automated appeal decision import
+│   ├── AuthenticationService.js # Challenge-response authentication
+│   ├── ColdStorageService.js   # Encrypted batch storage management
+│   ├── EncryptionService.js    # AES-256-GCM encryption utilities
+│   ├── MemoryManager.js        # Memory usage monitoring and cleanup
+│   ├── PerformanceMonitor.js   # Performance metrics and alerts
+│   └── ServiceProvider.js      # Service coordination and dependency injection
+├── stores/              # Vue reactive state management
+│   └── index.ts         # Cold storage and authentication state
+├── workers/             # Web worker implementations
+│   ├── coldStorageWorker.ts # Encrypted batch processing worker
+│   └── index.ts         # Worker factory and management
+├── utils/               # Utility functions and helpers
+│   ├── BrowserResourceManager.js # Browser API resource monitoring
+│   ├── appealDataTransformer.ts  # Appeal metadata transformation
+│   ├── appealDecisionLetterDownloader.ts # Document download utilities
+│   ├── dataValidator.ts         # Data validation and sanitization
+│   ├── logger.ts               # Structured logging system
+│   ├── metadataExtractor.ts    # PDF metadata extraction
+│   └── searchHistoryService.ts # localStorage-based search history
+└── types/               # TypeScript type definitions
+    └── index.ts         # Core application types
 ```
 
 **Key domain models**:
-- **Users**: Hospital staff with different roles (Admin, Manager, Staff)
-- **Locations**: Hospital sites and departments within sites
-- **Shifts**: Time slots that need to be filled (with types, requirements)
-- **Rotas**: Schedules linking users to shifts across time periods
-- **Shift Swaps**: Requests for staff to exchange allocated shifts
-- **User Types**: Role-based permissions and access levels
+- **Cold Storage Batches**: Encrypted document collections with salt-embedded authentication
+- **Appeal Documents**: UK Planning Appeal decision letters with structured metadata
+- **Search Results**: Worker-based query results with relevance scoring and highlighting
+- **Search History**: localStorage-based search query history (no longer database-stored)
+- **Authentication State**: Challenge-response authentication for encrypted batch access
+- **Appeal Metadata**: LPA, inspector, decision outcome, reference numbers, dates
+
+### **CRITICAL: Data Structure & Flow Patterns**
+
+**⚠️ ALWAYS CHECK THIS WHEN INVESTIGATING DATA DISPLAY OR MISMATCH ISSUES ⚠️**
+
+#### **Data Structure Inconsistency Pattern**
+The application has **TWO DIFFERENT** data structure patterns that must be understood when debugging data display issues:
+
+**1. Test Data Structure (Flat):**
+```json
+// public/cold-storage/test-batch-001.json
+{
+  "id": "test-doc-001", 
+  "filename": "test-appeal-001.pdf",
+  "content": "...",
+  // ALL appeal fields at ROOT level
+  "case_type": "Planning Appeal",
+  "case_id": "APP/B1234/A/21/1234567", 
+  "lpa_name": "Cotswold District Council",
+  "decision_outcome": "Dismissed",
+  "decision_date": "2021-04-15",
+  // ... all other appeal metadata fields
+  "metadata": {
+    "extractedDate": "2025-06-27T23:00:00.000Z",
+    "contentSummary": "Single storey extension refused"
+  }
+}
+```
+
+**2. Production Data Structure (Also Flat - Matches Test):**
+```typescript
+// appealDataTransformer.ts output (intentionally matches test format)
+{
+  id: "APP/B1234/A/21/1234567",
+  filename: "APP_B1234_A_21_1234567.pdf", 
+  content: "...",
+  // ALL appeal fields at ROOT level (matches test batch)
+  case_type: "Planning Appeal",
+  lpa_name: "Cotswold District Council", 
+  decision_outcome: "Dismissed",
+  // Processing metadata nested separately
+  metadata: {
+    extractedDate: "...",
+    transformed_at: "...",
+    source_type: "appeal_decision_letter"
+  }
+}
+```
+
+#### **Data Flow Paths & Critical Points**
+
+**Path 1: Test Data Flow (Development/Testing)**
+```
+Test Batch (Flat) → ColdStorageWorker → SearchResult → SearchResultCard ✅
+└─ All fields at root: document.case_type, document.lpa_name
+```
+
+**Path 2: Production Data Flow (Appeal Import)**  
+```
+AppealImport → appealDataTransformer (Flat) → ColdStorageWorker → SearchResult → SearchResultCard ✅  
+└─ All fields at root: document.case_type, document.lpa_name
+```
+
+#### **ColdStorageWorker Search Result Building**
+```typescript
+// src/workers/coldStorageWorker.ts:1216-1228
+const { content: _, ...documentFields } = document;
+results.push({
+  ...documentFields, // Spreads ALL root-level fields (case_type, lpa_name, etc.)
+  snippet,
+  relevance,
+  tier: 'cold'
+});
+```
+
+#### **SearchResultCard Data Access Pattern**
+```typescript
+// src/components/SearchResultCard.vue:167-181
+function getMetadataValue(field: string): string {
+  // CHECKS BOTH nested metadata AND root-level document fields
+  let value = (metadata.value as any)?.[field];           // Try nested first
+  if (value === 'NOT_FOUND' && props.result?.document) {
+    value = (props.result.document as any)?.[field];      // Fallback to root level
+  }
+  return value || 'NOT_FOUND';
+}
+```
+
+#### **DEBUGGING CHECKLIST: Data Display Issues**
+
+When SearchResultCard shows "NOT_FOUND" for metadata fields:
+
+1. **✅ Verify Data Structure**: Console.log `props.result.document` in SearchResultCard
+   - Are appeal fields at `document.case_type` (root) or `document.metadata.case_type` (nested)?
+
+2. **✅ Check ColdStorageWorker Output**: Look at search results from worker
+   - Does `...documentFields` spread include the expected fields?
+
+3. **✅ Validate Source Data**: Check original batch/transform data
+   - Test batch: Fields should be at root level
+   - Transformed data: Fields should be at root level (matches test)
+
+4. **✅ Component Access Logic**: Verify `getMetadataValue()` function
+   - Should check both nested metadata AND root-level fields
+   - Fallback logic must be working correctly
+
+#### **Common Failure Patterns**
+
+❌ **Assuming Nested Structure**: Components expecting `document.metadata.case_type` when data is at `document.case_type`
+
+❌ **Type Definition Mismatch**: Types expecting nested when implementation uses flat
+
+❌ **Transform Inconsistency**: Data transformer putting fields in different location than test data
+
+**🎯 Golden Rule**: Test data format and production data format MUST match. Any data display component must handle the FLAT structure where appeal metadata lives at the document root level.**
 
 ---
 
-## 7. Anchor Comments
+## 8. Anchor Comments
 
 Add specially formatted comments throughout the codebase, where appropriate, for yourself as inline knowledge that can be easily `grep`ped for. 
 
@@ -400,7 +902,7 @@ function render_feed(){
 
 ---
 
-## 8. Commit Discipline
+## 9. Commit Discipline
 
 *   **Granular commits**: One logical change per commit.
 *   **Tag AI-generated commits**: e.g., `feat: optimise feed query [AI]`.
@@ -409,12 +911,12 @@ function render_feed(){
 
 ---
 
-## 9. API Models & Codegen
+## 10. API Models & Codegen
 TBD
 
 ---
 
-## 10. Testing Strategy
+## 11. Testing Strategy
 
 ### Current Testing Setup
 - **Framework**: Vitest for unit tests
@@ -426,7 +928,32 @@ TBD
 - Write tests for all new components and services
 - Focus on business logic in services and stores
 - Test user interactions and edge cases
-- Maintain high coverage for critical healthcare workflows
+- Maintain high coverage for critical document processing workflows
+
+### Test Credentials and Data
+**IMPORTANT**: For testing encrypted document search functionality
+
+#### Development Authentication
+- **Test Password**: `TestPassword123!`
+- **Purpose**: Used for accessing encrypted test batch in development
+- **Location**: Encrypted test batch at `public/cold-storage/test-batch-001-encrypted.json`
+- **Contains**: 3 sample appeal decision documents with keywords: "character", "appeal", "planning", etc.
+
+#### Password Requirements
+The test password meets all authentication requirements:
+- ✅ 12+ characters long
+- ✅ Contains uppercase letter (T, P)
+- ✅ Contains lowercase letters (est, assword)
+- ✅ Contains numbers (123)
+- ✅ Contains special characters (!)
+
+#### Testing Encrypted Search
+1. **Setup**: Navigate to application and enter `TestPassword123!` when prompted
+2. **Authentication**: System will create challenge data and authenticate
+3. **Search Test**: Try searching for "appeal", "character", or "planning"
+4. **Expected Results**: Should return 1-3 documents from the encrypted test batch
+
+**Note**: This password is for development/testing only. Production deployments require users to set their own secure passwords.
 
 ### Test Coverage Requirements
 **CRITICAL**: Follow the systematic coverage methodology defined in `coverage.md`
@@ -463,13 +990,13 @@ npm run test:run        # Single test run
 
 ---
 
-## 11. Security Considerations
+## 12. Security Considerations
 
-### Healthcare Data Protection
-- **Patient Privacy**: Ensure no patient data is logged or exposed
-- **Access Control**: Role-based permissions strictly enforced
-- **Session Management**: Secure authentication and session handling
-- **Data Validation**: All inputs validated server-side
+### Document Data Protection
+- **Document Privacy**: Ensure document content is processed locally and not transmitted
+- **Local Storage**: All processing happens client-side using IndexedDB
+- **No Server Dependencies**: Application runs entirely in browser
+- **Data Validation**: All document uploads validated and sanitized
 
 ### Development Security
 - No hardcoded credentials or secrets
@@ -478,7 +1005,7 @@ npm run test:run        # Single test run
 
 ---
 
-## 12. Directory-Specific AGENTS.md Files
+## 13. Directory-Specific AGENTS.md Files
 
 *   **Always check for `AGENTS.md` files in specific directories** before working on code within them. These files contain targeted context.
 *   If a directory's `AGENTS.md` is outdated or incorrect, **update it**.
@@ -487,13 +1014,13 @@ npm run test:run        # Single test run
 
 ---
 
-## 13. Common Pitfalls
+## 14. Common Pitfalls
 
 *   Large AI refactors in a single commit (makes `git bisect` difficult).
 
 ---
 
-## 14. Versioning Conventions
+## 15. Versioning Conventions
 
 Components are versioned independently. Semantic Versioning (SemVer: `MAJOR.MINOR.PATCH`) is generally followed, as specified in each component's `package.json` file.
 
@@ -503,7 +1030,7 @@ Components are versioned independently. Semantic Versioning (SemVer: `MAJOR.MINO
 
 ---
 
-## 15. Decision Trees for Common Choices
+## 16. Decision Trees for Common Choices
 
 ### When to Create a New Component vs Modify Existing
 
@@ -511,20 +1038,21 @@ Components are versioned independently. Semantic Versioning (SemVer: `MAJOR.MINO
 Need UI functionality?
 ├── Similar component exists? 
 │   ├── YES → Extend existing component with props/slots
-│   └── NO → Check if it's healthcare-specific
+│   └── NO → Check if it's document processing specific
 │       ├── YES → Create in components/ with AIDEV-NOTE
 │       └── NO → Create generic component
 └── Page-level functionality?
-    └── Create in views/dashboard/ following existing patterns
+    └── Create in views/ following existing patterns
 ```
 
 ### State Management: Local vs Store
 
 ```
 Data needed by multiple components?
-├── YES → Use Vuex store module
-│   ├── Healthcare data → store/modules/ (e.g., rotas.js, shifts.js)  
-│   └── UI state → store/modules/theme.js
+├── YES → Use appropriate storage layer
+│   ├── Document data → Cold storage (encrypted batches via workers)
+│   ├── Search history → localStorage (searchHistoryService)
+│   └── Authentication state → Vue reactive store
 └── NO → Local component state (ref/reactive)
     ├── Form data → Local state
     └── Temporary UI → Local state  
@@ -533,27 +1061,57 @@ Data needed by multiple components?
 ### Service Layer Organization
 
 ```
-New API endpoint needed?
-├── Healthcare domain → Existing service file
-│   ├── Authentication → services/auth.js
-│   ├── Staff/Rotas → services/shifts.js  
-│   └── Hospitals → services/locations.js
+New service functionality needed?
+├── Document processing domain → Existing service file
+│   ├── Cold Storage → services/ColdStorageService.js
+│   ├── Authentication → services/AuthenticationService.js
+│   ├── Appeal Import → services/AppealImportService.ts
+│   ├── Encryption → services/EncryptionService.js
+│   └── Performance → services/PerformanceMonitor.js
 └── New domain → Create new service file
     └── Follow existing patterns with error handling
 ```
 
+### MCP Tool Selection
+
+```
+Need additional capabilities?
+├── Research needed?
+│   ├── Library docs → mcp__context7__ tools
+│   ├── Current trends → mcp__duckduckgo-search__
+│   └── Complex analysis → mcp__sequential-thinking__
+├── Code quality checks?
+│   ├── Type errors → mcp__ide__getDiagnostics
+│   ├── Code execution → mcp__ide__executeCode
+│   └── Testing snippets → mcp__ide__executeCode
+├── UI/Browser testing?
+│   ├── Screenshots → mcp__puppeteer__screenshot
+│   ├── Interactions → mcp__puppeteer__click/fill
+│   └── JavaScript → mcp__puppeteer__evaluate
+└── Knowledge management?
+    ├── Store insights → mcp__memory-bank__write
+    ├── Retrieve patterns → mcp__memory-bank__read
+    └── Cross-project → mcp__memory-bank__list_projects
+```
+
 ---
 
-## 16. Domain-Specific Terminology
+## 17. Domain-Specific Terminology
 
 *   **AIDEV-NOTE/TODO/QUESTION**: Specially formatted comments to provide inline context or tasks for AI assistants and developers.
-*   **Rota Management**: Core business domain for healthcare staff scheduling
-*   **Shift Patterns**: Recurring schedule templates used across healthcare settings
-*   **Compliance Tracking**: Monitoring adherence to healthcare working time regulations
+*   **Cold Storage**: Encrypted batch-based document storage architecture with AES-256-GCM encryption
+*   **Appeal Processing**: Automated import and processing of UK Planning Appeal decision letters
+*   **Salt-Embedded Authentication**: Encryption approach where batch-specific salts enable secure key derivation
+*   **Worker-Based Search**: Non-blocking search operations performed in web workers for better performance
+*   **Challenge-Response Auth**: Password verification system without storing actual passwords
+*   **MCP (Model Context Protocol)**: Extended AI capabilities through server plugins for research, code analysis, browser automation, and knowledge management
+*   **Context7**: Library documentation service for API reference and usage patterns
+*   **Sequential Thinking**: Structured problem-solving approach for complex technical challenges
+*   **Memory Bank**: Cross-project knowledge storage for implementation insights and patterns
 
 ---
 
-## 17. Meta: Guidelines for Updating AGENTS.md Files
+## 18. Meta: Guidelines for Updating AGENTS.md Files
 
 ### Elements that would be helpful to add:
 

@@ -1,0 +1,21 @@
+/* AIDEV-NOTE: Component-specific styles that cannot be handled by theme system */
+/* This file should remain minimal - most styling should use theme variables */
+
+/* SearchDebugPanel component uses Tailwind utilities with dark: modifiers */
+/* No additional styling needed - handled by Tailwind + theme variables */
+
+/* PerformanceIndicator component uses theme variables for all styling */
+/* No additional component-specific styles needed */
+
+/* Range slider components use theme variables for consistent theming */
+/* Slider-specific styling remains in component files where needed */
+
+/* Global component utilities */
+.search-debug-panel {
+  font-family: var(--font-family-sans);
+}
+
+/* Ensure consistent font family across all components */
+.p-component {
+  font-family: var(--font-family-sans) !important;
+}

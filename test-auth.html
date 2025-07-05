@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authentication System Test</title>
+</head>
+<body>
+    <h1>Authentication System Test</h1>
+    <div id="status">Loading...</div>
+    <div id="controls" style="display: none;">
+        <input type="password" id="password" placeholder="Enter password (min 12 chars, mixed case, numbers, symbols)">
+        <button onclick="setupPassword()">Setup Password</button>
+        <button onclick="verifyPassword()">Verify Password</button>
+        <button onclick="resetPassword()">Reset All Data</button>
+    </div>
+    <div id="results"></div>
+
+    <script type="module">
+        import { authService } from './src/services/AuthenticationService.js';
+        import { encryptionService } from './src/services/EncryptionService.js';
+
+        window.authService = authService;
+        window.encryptionService = encryptionService;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            const status = document.getElementById('status');
+            const controls = document.getElementById('controls');
+
+            try {
+                const authState = authService.getAuthState();
+                
+                if (authState.hasChallenge) {
+                    status.textContent = 'Password already set up. Enter password to verify.';
+                } else {
+                    status.textContent = 'No password set up. Create a password to get started.';
+                }
+
+                controls.style.display = 'block';
+            } catch (error) {
+                status.textContent = `Error: ${error.message}`;
+            }
+        });
+
+        window.setupPassword = async function() {
+            const password = document.getElementById('password').value;
+            const results = document.getElementById('results');
+
+            try {
+                results.textContent = 'Setting up password...';
+                
+                const success = await authService.setupPassword(password);
+                
+                if (success) {
+                    results.textContent = 'Password setup successful! You can now verify it.';
+                    
+                    // Test encryption
+                    const keyMaterial = await authService.getKeyMaterialForWorker();
+                    await encryptionService.initialize(keyMaterial);
+                    
+                    const testBatch = await encryptionService.createTestBatch();
+                    const encrypted = await encryptionService.encryptBatch(testBatch);
+                    const decrypted = await encryptionService.decryptBatch(encrypted);
+                    
+                    results.textContent += '\nEncryption test successful!';
+                    console.log('Test batch:', testBatch);
+                    console.log('Encrypted:', encrypted);
+                    console.log('Decrypted:', decrypted);
+                } else {
+                    results.textContent = 'Password setup failed.';
+                }
+            } catch (error) {
+                results.textContent = `Error: ${error.message}`;
+            }
+        };
+
+        window.verifyPassword = async function() {
+            const password = document.getElementById('password').value;
+            const results = document.getElementById('results');
+
+            try {
+                results.textContent = 'Verifying password...';
+                
+                const isValid = await authService.verifyPassword(password);
+                
+                if (isValid) {
+                    results.textContent = 'Password verification successful!';
+                    
+                    // Test encryption with verified password
+                    const keyMaterial = await authService.getKeyMaterialForWorker();
+                    await encryptionService.initialize(keyMaterial);
+                    
+                    results.textContent += '\nEncryption service initialized successfully!';
+                } else {
+                    results.textContent = 'Password verification failed - incorrect password.';
+                }
+            } catch (error) {
+                results.textContent = `Error: ${error.message}`;
+            }
+        };
+
+        window.resetPassword = async function() {
+            const results = document.getElementById('results');
+
+            try {
+                results.textContent = 'Resetting all data...';
+                
+                await authService.resetPassword();
+                
+                results.textContent = 'All data cleared successfully! You can set up a new password.';
+                document.getElementById('status').textContent = 'No password set up. Create a password to get started.';
+            } catch (error) {
+                results.textContent = `Error: ${error.message}`;
+            }
+        };
+    </script>
+</body>
+</html>

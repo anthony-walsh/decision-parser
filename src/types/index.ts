@@ -19,6 +19,17 @@ export interface Document {
     inspector?: string;
     decisionOutcome?: 'Dismissed' | 'Allowed' | 'NOT_FOUND';
   };
+  // AIDEV-NOTE: Cold storage documents may also have appeal fields at root level
+  // These are flattened during data transformation for compatibility with test batch format
+  case_type?: string;
+  case_id?: string;
+  lpa_name?: string;
+  decision_outcome?: string;
+  decision_date?: string;
+  case_officer?: string;
+  procedure?: string;
+  status?: string;
+  [key: string]: any; // Allow additional appeal fields at root level
 }
 
 export interface SearchIndex {
@@ -55,6 +66,7 @@ export interface SavedSearch {
 }
 
 export interface SearchResult {
+  id: string;
   document: Document;
   matches: Array<{
     content: string;
@@ -63,6 +75,18 @@ export interface SearchResult {
     score: number;
   }>;
   overallScore: number;
+}
+
+// AIDEV-NOTE: Cold storage search result format
+export interface ColdStorageSearchResult {
+  id: string;
+  filename: string;
+  metadata: any;
+  snippet: string;
+  relevance: number;
+  tier: 'hot' | 'cold';
+  isArchived: boolean;
+  batchId?: string;
 }
 
 export interface ProcessingProgress {
@@ -83,6 +107,8 @@ export interface DateFilter {
   type: 'all' | 'earlierThan' | 'laterThan' | 'range';
   earlierThan?: string; // ISO date string
   laterThan?: string; // ISO date string
+  from?: string; // ISO date string for range start
+  to?: string; // ISO date string for range end
 }
 
 export interface SearchSummaryData {
@@ -111,5 +137,46 @@ export interface SearchSummaryData {
   // AIDEV-NOTE: Add applied filter information to search summary
   appliedFilters?: {
     dateFilter?: DateFilter;
+    metadataFilters?: MetadataFilters;
   };
+}
+
+// AIDEV-NOTE: Comprehensive metadata filtering interfaces for advanced search functionality
+export interface DateRangeFilter {
+  enabled: boolean;
+  start?: string; // ISO date string
+  end?: string; // ISO date string
+}
+
+export interface MetadataFilters {
+  // Case Information filters
+  lpaNames: string[];
+  caseTypes: string[];
+  caseOfficers: string[];
+  procedures: string[];
+  statuses: string[];
+  
+  // Decision Information filters
+  decisionOutcomes: string[];
+}
+
+export interface FilterOptions {
+  lpaNames: string[];
+  caseTypes: string[];
+  caseOfficers: string[];
+  procedures: string[];
+  statuses: string[];
+  decisionOutcomes: string[];
+}
+
+export interface FilterCounts {
+  total: number;
+  lpaNames: number;
+  caseTypes: number;
+  caseOfficers: number;
+  procedures: number;
+  statuses: number;
+  dateFilters: number;
+  decisionOutcomes: number;
+  linkedCases: number;
 }

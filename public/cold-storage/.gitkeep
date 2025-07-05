@@ -1,0 +1,13 @@
+# Cold Storage Directory
+
+This directory contains encrypted document batches for the cold storage tier.
+
+Structure:
+- storage-index.json: Index of all encrypted batches
+- documents-batch-*.json: Encrypted document batches (AES-GCM-256)
+
+Example batch names:
+- documents-batch-001.json
+- documents-batch-002.json
+
+All batches are encrypted using AES-GCM-256 with PBKDF2 key derivation (600,000 iterations).

@@ -1,17 +1,12 @@
 @import 'tailwindcss';
 
+/* AIDEV-NOTE: Import centralized theme system - replaces component-level overrides */
+@import './styles/theme.css';
+@import './styles/primevue-theme.css';
+@import './styles/components.css';
+
 * {
   box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.6;
-}
-
-.search-highlight {
-  background-color: #ffeb3b;
-  padding: 1px 2px;
-  border-radius: 2px;
-  font-weight: 500;
-}
+/* AIDEV-NOTE: Body styling now handled by theme.css for consistency */
