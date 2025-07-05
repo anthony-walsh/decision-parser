@@ -8,7 +8,7 @@
 export const deploymentConfig = {
   // Base configuration
   base: '/decision-parser/',
-  
+
   // Asset paths
   paths: {
     sqlWasm: '/decision-parser/sql-wasm/',
@@ -21,16 +21,16 @@ export const deploymentConfig = {
   coldStorage: {
     // Maximum batch size (15MB)
     maxBatchSize: 15 * 1024 * 1024,
-    
+
     // Cache configuration
     maxCacheSize: 100 * 1024 * 1024, // 100MB
-    
+
     // Batch naming pattern
     batchNamePattern: 'documents-batch-{id}.json',
-    
+
     // Index file
     indexFile: 'storage-index.json',
-    
+
     // Encryption settings
     encryption: {
       algorithm: 'AES-GCM',
@@ -51,7 +51,7 @@ export const deploymentConfig = {
     files: [
       'sql-wasm.wasm'
     ],
-    
+
     // Headers for WASM files
     headers: {
       'Content-Type': 'application/wasm',
@@ -65,12 +65,11 @@ export const deploymentConfig = {
   workers: {
     // Worker files that will be created during build
     files: [
-      'hotStorageWorker',
-      'coldStorageWorker', 
+      'coldStorageWorker',
       'migrationWorker',
       'pdfProcessor'
     ],
-    
+
     headers: {
       'Content-Type': 'application/javascript',
       'Cache-Control': 'public, max-age=31536000',
@@ -83,14 +82,14 @@ export const deploymentConfig = {
   performance: {
     // Chunk size limits
     maxChunkSize: 1000, // 1MB warning threshold
-    
+
     // Compression
     gzip: true,
     brotli: true,
-    
+
     // Source maps in production
     sourcemap: true,
-    
+
     // Bundle analysis
     bundleAnalyzer: process.env.ANALYZE === 'true'
   },
@@ -99,13 +98,13 @@ export const deploymentConfig = {
   githubPages: {
     // Custom domain (if used)
     domain: null,
-    
+
     // 404 handling for SPA
     spa404: true,
-    
+
     // CNAME file generation
     generateCname: false,
-    
+
     // Asset optimization
     optimizeAssets: true
   },
@@ -122,7 +121,7 @@ export const deploymentConfig = {
       'style-src': ["'self'", "'unsafe-inline'"],
       'font-src': ["'self'"]
     },
-    
+
     // Additional security headers
     headers: {
       'X-Content-Type-Options': 'nosniff',
@@ -136,17 +135,17 @@ export const deploymentConfig = {
   development: {
     // Hot reload settings
     hmr: false, // Disabled for worker compatibility
-    
+
     // CORS headers for development
     cors: true,
-    
+
     // Dev server configuration  
     server: {
       host: '0.0.0.0',
       port: 5173,
       open: false
     },
-    
+
     // Preview server for testing builds
     preview: {
       host: '0.0.0.0',
